@@ -1,6 +1,6 @@
 # External MCP video reading
 
-Companion 0.1.29 calls the independently packaged `acu-video-mcp` 0.2.2 native
+Companion 0.1.29 calls the independently packaged `acu-video-mcp` 0.2.3 native
 host `com.acucompute.video`. Runtime prepares this verified external tool during
 one-click setup and assigns it through official Magpie's standard Library API.
 There is no kernel patch, private video API, Runtime decoder or npm bootstrap.
