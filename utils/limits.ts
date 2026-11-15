@@ -59,7 +59,7 @@ export function selectPreparedImages<
 }
 
 export function preparedImageStats(
-  images: Array<{ dataUrl?: string }> = []
+  images: Array<{ dataUrl?: string; role?: string }> = []
 ) {
   const prepared = images
     .slice(0, MAX_REVIEW_IMAGE_MATERIALS)

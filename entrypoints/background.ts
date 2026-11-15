@@ -4,6 +4,7 @@ import { loadCompanionSettings } from "../utils/companion-settings";
 import { LlmRequestError, reviewWithLlm } from "../utils/llm";
 import { MAX_SINGLE_IMAGE_BYTES } from "../utils/limits";
 import { messageListener } from "../utils/messages";
+import { prepareVideoMaterials } from "../utils/video";
 
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
@@ -157,6 +158,9 @@ export default defineBackground(() => {
 
     try {
       let draft = message.draft;
+      if (draft.videoMaterials?.length && settings.llmIncludeImages) {
+        draft = await prepareVideoMaterials(draft, browser.runtime);
+      }
       if (new URL(settings.llmBaseUrl).hostname === "api.acucompute.com") {
         try {
           const response = await fetch(`${settings.llmBaseUrl.replace(/\/$/, "")}/private-acu/creative-assist`, {
@@ -185,6 +189,13 @@ export default defineBackground(() => {
         clientRequestId: String(message.clientRequestId || "")
       });
       if (draft.creativeMemory?.status === "unavailable") result.suggestions.push("本次历史经验暂不可用，审阅仅依据当前素材。");
+      for (const video of draft.videoMaterials || []) {
+        if (video.error) result.suggestions.push(`${video.materialId} 未读取：${video.error}`);
+        if (video.omittedFrames) result.suggestions.push(`${video.materialId} 有 ${video.omittedFrames} 张采样帧因本地传输预算未发送。`);
+      }
+      if (draft.videoMaterials?.length) result.suggestions.push(settings.llmIncludeImages
+        ? "视频评价仅依据已发送的采样画面，未分析音频。"
+        : "视频画面发送已关闭，本次没有进行视频视觉评价。");
       return { ok: true, result };
     } catch (error) {
       return {

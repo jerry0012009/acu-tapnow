@@ -59,6 +59,16 @@ export interface ReviewReferenceBinding {
 }
 
 export interface ReviewDraft {
+  videoMaterials?: Array<{
+    materialId: string;
+    url: string;
+    sourceNodeId?: string | null;
+    role: "upstream-video-reference" | "focused-video-output-unbound";
+    frames?: Array<{ timestamp: string; dataUrl: string }>;
+    observations?: string;
+    omittedFrames?: number;
+    error?: string;
+  }>;
   creativeMemory?: { status: string; supplement: string; references: Array<{ id: string; name: string; quote: string }> };
   canvasId?: string | null;
   nodeId?: string | null;
@@ -148,7 +158,8 @@ export const DEFAULT_LLM_PROMPT = [
   "只输出符合 JSON schema 的结果；不要改写原提示词，不要编造未提供的上下文。",
   "creative_memory是有来源的历史经验，只补充本次适用的选择；当前要求优先，探索意图优先。已明说的要求不重复提醒，但实际结果违反这些要求仍需指出。历史经验不能成为block的理由。",
   "严格区分生成前提示词建议与生成后结果观察；focused-node-output可能是旧结果，没有对应生成记录时不得称为当前新提示词的结果。只对实际提供的图片作视觉判断；参考绑定不明时不猜Image编号。可在suggestions给出简短提示词补充，不擅自应用。",
-  "decision 只能是 allow、warn、block；普通质量问题用 warn，明显无法运行或违反规则用 block。"
+  "decision 只能是 allow、warn、block；普通质量问题用 warn，明显无法运行或违反规则用 block。",
+  "video_materials包含视频采样范围和读取失败原因；只有实际随消息发送的video-frame图片才是已观察证据。按视频编号和时间戳引用，不把采样说成逐帧完整检查。未分析音频，不能评价音乐、台词、口型或音画同步。focused-video-output-unbound是当前节点已有视频，但未证实对应当前编辑提示词：可评价可见画面，不得据此断言当前提示词执行失败。视频缺失或读取失败必须说明无法判断，不得以此判定素材质量不合格；建议不得触发自动生成或修改节点。"
 ].join(" ");
 
 const DRAG_HELP_TEXT =
@@ -247,7 +258,7 @@ export function reviewDraft(
   const issues: ReviewIssue[] = [];
   const suggestions: string[] = [];
 
-  if (!prompt) {
+  if (!prompt && !draft.videoMaterials?.length) {
     issues.push({
       severity: "block",
       code: "empty-prompt",

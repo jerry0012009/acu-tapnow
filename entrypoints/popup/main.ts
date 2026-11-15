@@ -34,7 +34,7 @@ app.innerHTML = `
   <p>TapNow 节点审阅</p>
   <div class="row"><input id="enabled" type="checkbox"><label for="enabled">启用副驾驶</label></div>
   <div class="row"><input id="llmEnabled" type="checkbox"><label for="llmEnabled">启用模型审阅</label></div>
-  <div class="row"><input id="llmIncludeImages" type="checkbox"><label for="llmIncludeImages">检测时发送图片素材</label></div>
+  <div class="row"><input id="llmIncludeImages" type="checkbox"><label for="llmIncludeImages">检测时发送图片与视频采样画面</label></div>
   <div class="section">
     <button id="runtime-connect" type="button">连接 ACU Runtime</button>
     <details><summary>手动导入配置</summary>
@@ -65,7 +65,7 @@ app.innerHTML = `
     <input id="llmBaseUrl" type="text" placeholder="https://api.acucompute.com/v1">
     <label for="apiKey">API Key</label>
     <input id="apiKey" type="password" placeholder="留空表示不修改已保存的 Key">
-    <div class="hint">点击检测会向配置的 API 发送当前节点文字与图片，可能产生费用。Key 不会同步到 Chrome 账号。</div>
+    <div class="hint">点击检测会向配置的 API 发送当前节点文字、图片与视频采样画面，可能产生费用。视频音频不分析。Key 不会同步到 Chrome 账号。</div>
   </div>
   <button id="save" type="button">保存设置</button>
   <div id="status" role="status"></div>

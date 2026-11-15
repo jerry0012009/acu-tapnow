@@ -5,6 +5,7 @@ import type {
   ReviewNodeInfo
 } from "./reviewer";
 import { DEFAULT_LLM_PROMPT } from "./reviewer";
+import { videoFrameImages } from "./video";
 import {
   MAX_REVIEW_IMAGE_MATERIALS,
   MAX_REVIEW_PROMPT_CHARS,
@@ -157,7 +158,7 @@ function compactValue(value: unknown, depth = 0): unknown {
   return String(value).slice(0, 8_000);
 }
 
-function compactDraft(draft: ReviewDraft): string {
+function compactDraft(draft: ReviewDraft, includeImages = true): string {
   const prompt = String(draft.prompt ?? "").slice(
     0,
     MAX_REVIEW_PROMPT_CHARS
@@ -234,6 +235,13 @@ function compactDraft(draft: ReviewDraft): string {
     canvas_id: draft.canvasId ?? null,
     node_id: draft.nodeId ?? null,
     node_type: draft.nodeType ?? null,
+    video_materials: (draft.videoMaterials || []).map(video => ({
+      material_id: video.materialId, source_node_id: video.sourceNodeId, role: video.role,
+      audio_analyzed: false, observations: video.observations, error: video.error,
+      omitted_frames: video.omittedFrames || 0,
+      sampled_timestamps: (video.frames || []).map(frame => frame.timestamp),
+      sent_frames: selectedImages(draft, includeImages).filter(item => item.image.materialId?.startsWith(`${video.materialId}-frame-`)).map(item => item.image.reference)
+    })),
     prompt,
     prompt_source: draft.promptSource ?? null,
     prompt_candidates: (draft.promptCandidates || []).map((candidate) => ({
@@ -328,7 +336,7 @@ function compactDraft(draft: ReviewDraft): string {
 
 function selectedImages(draft: ReviewDraft, includeImages: boolean) {
   if (!includeImages) return [];
-  return selectPreparedImages(draft.imageMaterials || []);
+  return selectPreparedImages([...(draft.imageMaterials || []), ...videoFrameImages(draft)]);
 }
 
 function imageMarker(
@@ -342,7 +350,7 @@ function imageMarker(
 }
 
 function userContent(draft: ReviewDraft, includeImages: boolean) {
-  const text = compactDraft(draft);
+  const text = compactDraft(draft, includeImages);
   return [
     { type: "text", text },
     ...selectedImages(draft, includeImages).flatMap(({ image, index, dataUrl }) => [
@@ -359,7 +367,7 @@ function responseInput(draft: ReviewDraft, includeImages: boolean) {
   return [{
     role: "user",
     content: [
-      { type: "input_text", text: compactDraft(draft) },
+      { type: "input_text", text: compactDraft(draft, includeImages) },
       ...selectedImages(draft, includeImages).flatMap(
         ({ image, index, dataUrl }) => [
           {
@@ -786,7 +794,9 @@ export async function reviewWithLlm(
   };
   const systemPrompt = String(settings.prompt || DEFAULT_LLM_PROMPT)
     .trim()
-    .slice(0, MAX_LLM_PROMPT_LENGTH);
+    .slice(0, MAX_LLM_PROMPT_LENGTH) + (draft.videoMaterials?.length
+      ? "\nVideo evidence contract: Only sent frame images were visually inspected. Cite video ID and sampled timestamp; audio was not analyzed. Do not infer defects or successful full-video inspection from missing evidence. focused-video-output-unbound is not bound to the currently edited prompt; do not claim prompt adherence or non-adherence without generation provenance. Suggestions are read-only and never authorize generation or edits."
+      : "");
 
   const body =
     settings.protocol === "chat_completions"
@@ -1009,7 +1019,7 @@ export function reviewPayloadStats(
   draft: ReviewDraft,
   includeImages: boolean
 ) {
-  const compact = compactDraft(draft);
+  const compact = compactDraft(draft, includeImages);
   const parsed = JSON.parse(compact);
   const sourceTextChars =
     String(draft.prompt || "").length +
@@ -1030,7 +1040,7 @@ export function reviewPayloadStats(
       0
     );
   const images = includeImages
-    ? preparedImageStats(draft.imageMaterials)
+    ? preparedImageStats([...(draft.imageMaterials || []), ...videoFrameImages(draft)])
     : {
         preparedCount: 0,
         sentCount: 0,

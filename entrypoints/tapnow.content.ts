@@ -1,6 +1,7 @@
 import { browser } from "wxt/browser";
 import { createElement, GripVertical, RotateCcw } from "lucide";
 import { companionRoute } from "../utils/tapnow-route";
+import { isVideoMaterial, videoDraftIdentity } from "../utils/video";
 import { loadCompanionSettings } from "../utils/companion-settings";
 import {
   canvasRoot,
@@ -1121,6 +1122,7 @@ export default defineContentScript({
         }
 
         const imageMaterials: NonNullable<ReviewDraft["imageMaterials"]> = [];
+        const videoMaterials: NonNullable<ReviewDraft["videoMaterials"]> = [];
         const seenImages = new Set<string>();
         const addImageMaterial = async (candidate: {
           url: string;
@@ -1132,8 +1134,16 @@ export default defineContentScript({
           sourceTitle?: string | null;
           role: string;
         }) => {
-          if (imageMaterials.length >= MAX_REVIEW_IMAGE_MATERIALS) return null;
           const url = sourceImageUrl(candidate.url).slice(0, 2_000);
+          if (isVideoMaterial(url, candidate.sourceNodeType)) {
+            if (!videoMaterials.some(video => video.url === url) && videoMaterials.length < 8) {
+              videoMaterials.push({ materialId: `video-${videoMaterials.length + 1}`, url,
+                sourceNodeId: candidate.sourceNodeId,
+                role: candidate.role === "focused-node-output" ? "focused-video-output-unbound" : "upstream-video-reference" });
+            }
+            return null;
+          }
+          if (imageMaterials.length >= MAX_REVIEW_IMAGE_MATERIALS) return null;
           const imageKey = imageIdentity(url);
           if (!/^https?:\/\//i.test(url) || seenImages.has(imageKey)) return null;
           seenImages.add(imageKey);
@@ -1184,6 +1194,14 @@ export default defineContentScript({
             role: "focused-node-output"
           });
         }
+        // A DOM image-reference strip can omit upstream video inputs entirely.
+        for (const info of incomingInfos) {
+          for (const media of info.media) {
+            if (isVideoMaterial(media.url, info.nodeType)) await addImageMaterial({ ...media,
+              sourceNodeId: info.id, sourceNodeType: info.nodeType, sourceTitle: info.title,
+              role: "upstream-reference" });
+          }
+        }
         const referenceBindings = buildReferenceBindings(
           prompt,
           referenceSources
@@ -1216,6 +1234,10 @@ export default defineContentScript({
             continue;
           }
           if (info.media.length) {
+            if (info.media.some(media => isVideoMaterial(media.url, info.nodeType))) {
+              upstreamSummaryParts.push(`[引用视频 ${info.id}${info.title ? ` / ${info.title}` : ""}]`);
+              continue;
+            }
             const referenceNumber = referenceNumberByNodeId.get(info.id);
             upstreamSummaryParts.push(
               `[引用图片${referenceNumber ? ` Image ${referenceNumber}` : ""} ${info.id}${info.title ? ` / ${info.title}` : ""}]`
@@ -1236,6 +1258,7 @@ export default defineContentScript({
           textMaterials,
           textMaterialSources,
           imageMaterials,
+          videoMaterials,
           nodeInfo: apiFocusInfo,
           incomingNodes: incomingInfos,
           incomingConnections,
@@ -1376,6 +1399,7 @@ export default defineContentScript({
             ? `${captureErrors.length ? captureErrors.join(" ") + " " : ""}图片仅在本地完成预检；点击“检测”才会按总请求预算发送。${payloadStats.omittedCount ? ` 有 ${payloadStats.omittedCount} 项因预算未发送。` : ""}`
             : "正在本地准备图片；此过程不会调用 LLM。"
           : "点击“检测”才会调用 LLM；当前未开启图片发送，只传图片元数据。";
+        const videoNotice = draft.videoMaterials?.length ? `视频 ${draft.videoMaterials.length} 项 · ${state.settings.llmIncludeImages ? "检测时读取采样画面，音频未分析" : "画面发送已关闭"}` : "";
         const debugInfo = {
           canvasId: draft.canvasId || null,
           nodeId: draft.nodeId || null,
@@ -1394,6 +1418,7 @@ export default defineContentScript({
           outgoingConnections: draft.outgoingConnections || [],
           referenceBindings: draft.referenceBindings || [],
           snapshot: draft.snapshot || null,
+          videos: (draft.videoMaterials || []).map(({frames, ...video}) => ({ ...video, frameCount: frames?.length || 0 })),
           images: (draft.imageMaterials || []).map((image) => ({
             materialId: image.materialId || null,
             url: image.url,
@@ -1494,6 +1519,7 @@ export default defineContentScript({
           <div class="context">${escapeHtml(draft.upstreamSummary || "未检测到可见上下文")}</div>
           <div class="label">素材</div>
           <div class="materials">${materialSummary}</div>
+          ${videoNotice ? `<div class="notice">${escapeHtml(videoNotice)}</div>` : ""}
           <div class="label">检查结果</div>
           ${issueHtml}
           ${llmHtml}
@@ -1511,7 +1537,7 @@ export default defineContentScript({
         draft: ReviewDraft,
         clientRequestId: string
       ): Promise<LlmResponse> {
-        const timeoutMs = LLM_REQUEST_TIMEOUT_MS + 53_000;
+        const timeoutMs = LLM_REQUEST_TIMEOUT_MS + (draft.videoMaterials?.length ? 145_000 : 53_000);
         let timer: ReturnType<typeof setTimeout> | undefined;
         try {
           return await Promise.race([
@@ -1676,7 +1702,8 @@ export default defineContentScript({
           const current = await getDraft(false);
           if (current.nodeId !== draft.nodeId || current.canvasId !== draft.canvasId ||
               current.prompt !== draft.prompt || JSON.stringify(current.referenceBindings) !== JSON.stringify(draft.referenceBindings) ||
-              JSON.stringify(current.imageMaterials?.map(i => i.url)) !== JSON.stringify(draft.imageMaterials?.map(i => i.url))) {
+              JSON.stringify(current.imageMaterials?.map(i => i.url)) !== JSON.stringify(draft.imageMaterials?.map(i => i.url)) ||
+              videoDraftIdentity(current) !== videoDraftIdentity(draft)) {
             if (sequence === state.reviewSequence) render(current, reviewDraft(current, state.settings), null, "输入或素材已变化，请重新审阅。", false);
             return;
           }
