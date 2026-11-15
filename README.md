@@ -1,5 +1,13 @@
 # TapNow ZIP Distribution And Runtime Setup
 
+TapNow 0.1.31 unifies Companion, Backup, the canvas panel, local library and
+connection screens with the ACU charcoal/orange interface. Companion settings
+use a scrolling popup with persistent Save and collapsed advanced fields.
+The update preserves extension identities, credentials and backup formats.
+See [visual design](docs/ACU_PLUGIN_VISUAL_DESIGN.md) and
+[acceptance](docs/ACU_PLUGIN_VISUAL_ACCEPTANCE.md). Release assets and the Runtime
+catalog are activated only after the tagged workflow and downloaded ZIP checks.
+
 TapNow 0.1.26 simplifies connection screens to a current action and a short result.
 It retains native connection directly inside both Chrome action popups,
 without externally navigating to chrome-extension pages. It retains official
