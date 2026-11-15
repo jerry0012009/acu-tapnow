@@ -75,3 +75,10 @@ this remote main-branch catalog; no Runtime binary or backend restart is needed.
 Users must reload unpacked extensions in Chrome after Runtime updates their
 files. This publication does not claim a remote change to a user's browser or
 ordinary Windows/macOS Load Unpacked acceptance.
+
+Post-activation verification used Runtime's actual `tapnowCatalogURL`, HTTP
+client, `validTapnowPackage`, `prepare` and `tapnowPreparedIdentity`, with a
+temporary installation root. `ACU_TAPNOW_RELEASE_VERSION=0.1.31 go test -run
+'^TestTapnowPublishedChannelPreparesBothEditions$' -count=1 -v .` passed for
+both editions. This fetched the live main catalog and downloaded both public
+assets; no fixture transport or production user installation was used.
