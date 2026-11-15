@@ -1,6 +1,6 @@
 # External MCP video reading
 
-Companion 0.1.28 calls the independently packaged `acu-video-mcp` 0.2.0 native
+Companion 0.1.29 calls the independently packaged `acu-video-mcp` 0.2.2 native
 host `com.acucompute.video`. Runtime prepares this verified external tool during
 one-click setup and assigns it through official Magpie's standard Library API.
 There is no kernel patch, private video API, Runtime decoder or npm bootstrap.
@@ -15,7 +15,7 @@ The video host admits Companion only; Backup remains separate.
 Explicit detection reads at most three videos, 100 MiB/30 minutes each, with
 approximately 12 visual samples. The existing image-send setting controls frame
 sending. Source node/video/time labels go into normal image review; omitted and
-failed evidence is disclosed. Audio uses the same ACU Key with Gemini 3.8 Flash,
+failed evidence is disclosed. Audio uses the same ACU Key with Gemini 3.5 Flash Lite,
 reusing upstream WAV conversion and silence-aware segmentation. Timestamped
 speech/music/sound events are returned as compact text, not raw audio through
 Chrome native messaging. No track, failed and partial analysis are distinct;

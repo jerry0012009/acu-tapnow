@@ -160,7 +160,7 @@ export default defineBackground(() => {
       let draft = message.draft;
       if (draft.videoMaterials?.length && settings.llmIncludeImages) {
         draft = await prepareVideoMaterials(draft, browser.runtime, {
-          baseUrl: settings.llmBaseUrl, apiKey, model: "gemini-3.8-flash"
+          baseUrl: settings.llmBaseUrl, apiKey, model: "gemini-3.5-flash-lite"
         });
       }
       if (new URL(settings.llmBaseUrl).hostname === "api.acucompute.com") {
