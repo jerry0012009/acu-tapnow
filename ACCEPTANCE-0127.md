@@ -10,7 +10,15 @@ The external tool's four native platform jobs passed MOV self-tests before
 publication. Video frame protocol/identity/omission/failure cases are covered.
 Existing node/metadata and creative memory review remain source-grounded.
 
-Native host installation is supplied by Runtime 0.1.89 one-click setup. Older
+Native video host installation is supplied by Runtime 0.1.90 one-click setup. Older
 Runtime reports the missing native host; it does not fabricate visual evidence.
 Chrome first Load Unpacked and reload still require confirmation. No authorized
 private-canvas or paid-model quality acceptance is inferred from fixture tests.
+
+Closeout: the user reported successful TapNow installation on their device.
+The Runtime and acu-tapnow worktree review found all completed plugin branches
+already integrated into main. Fresh plugin tests (92), both edition builds and
+the production dependency audit passed on the integrated 0.1.27 source.
+The isolated Chromium/native-host regression also passed both editions,
+including replacing an old Key while retaining user rules and giving Backup no
+Key; no cloud inference request was sent.
