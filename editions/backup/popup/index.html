@@ -1,9 +1,12 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><title>TapNow 资产备份</title></head>
-<body><h1>TapNow 资产备份</h1>
-<button id="backup"><i data-lucide="download"></i>备份当前画布</button>
-<button id="library"><i data-lucide="folder-open"></i>查看本地备份</button>
-<button id="runtime-connect" type="button">连接 ACU Runtime</button>
-<p id="runtime-status" role="status"></p>
-<p id="status" role="status"></p>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TapNow 资产备份</title></head>
+<body>
+<header class="popup-header"><div class="acu-brand"><span class="acu-mark" aria-hidden="true">A</span><div><span class="acu-wordmark">ACU</span><span class="acu-edition">TapNow · 资产备份</span></div></div><span class="acu-version" id="version"></span></header>
+<main class="popup-content">
+<section class="popup-section"><div class="backup-intro"><h1>资产备份</h1><p>当前画布 · 增量补齐 · 本地资产库</p></div>
+<div class="backup-actions"><button id="backup" class="primary"><i data-lucide="download" aria-hidden="true"></i>备份当前画布<i class="action-arrow" data-lucide="arrow-up-right" aria-hidden="true"></i></button>
+<button id="library"><i data-lucide="folder-open" aria-hidden="true"></i>查看本地备份<i class="action-arrow" data-lucide="arrow-up-right" aria-hidden="true"></i></button></div>
+<p class="privacy-line"><i data-lucide="hard-drive" aria-hidden="true"></i>本地保存 · 无需模型 Key</p><p id="status" class="acu-status" role="status"></p></section>
+<section class="popup-section"><div class="runtime-row"><div><strong>ACU Runtime</strong><small>本机连接</small></div><button id="runtime-connect" type="button" aria-label="连接 ACU Runtime"><i data-lucide="link-2" aria-hidden="true"></i>连接</button></div>
+<p id="runtime-status" class="acu-status" role="status"></p></section></main>
 <script type="module" src="./main.ts"></script></body></html>

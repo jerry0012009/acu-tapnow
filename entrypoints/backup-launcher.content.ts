@@ -12,11 +12,12 @@ export default defineContentScript({
     const shadow = host.attachShadow({ mode: "open" });
     shadow.innerHTML = `<style>
       :host{all:initial;position:fixed;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;background:transparent;pointer-events:none;z-index:2147483647}
-      .dock{position:fixed;right:20px;bottom:128px;display:flex;align-items:center;gap:5px;max-width:calc(100vw - 16px);padding:5px;border:1px solid #bdc9cf;border-radius:8px;background:#fff;box-shadow:0 3px 12px #17212b26;pointer-events:auto}
-      button{border:0;border-radius:5px;min-height:34px;padding:6px 9px;font:600 13px/1.2 system-ui,sans-serif;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;color:#fff;background:#126f5e}
-      svg{width:16px;height:16px;flex-shrink:0}.grip,.reset-position{padding:5px;color:#55646d;background:transparent}.grip{cursor:grab;touch-action:none}
-      .library-launcher{color:#176451;background:#e9f3ef}
-      #error{position:fixed;left:16px;bottom:16px;max-width:calc(100vw - 32px);background:#fff1ec;color:#922d16;font:13px system-ui;padding:12px;pointer-events:auto}
+      .dock{position:fixed;right:20px;bottom:128px;display:flex;align-items:center;gap:4px;max-width:calc(100vw - 16px);padding:5px;border:1px solid #35383e;border-radius:8px;background:#191b1e;box-shadow:0 4px 20px #0005;pointer-events:auto;color-scheme:dark}
+      button{border:0;border-radius:5px;min-height:34px;padding:6px 9px;font:550 12px/1.2 system-ui,sans-serif;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;color:#ff9c42;background:#33261d}
+      button:hover{background:#36302b}button:focus-visible{outline:2px solid #ff9c42;outline-offset:2px}
+      svg{width:16px;height:16px;flex-shrink:0}.grip,.reset-position{padding:5px;color:#9a9fa9;background:transparent}.grip{cursor:grab;touch-action:none}
+      .library-launcher{color:#c4c7ce;background:#222529}
+      #error{position:fixed;left:16px;bottom:16px;max-width:calc(100vw - 32px);background:#302023;color:#ff9a9a;border:1px solid #6a3d44;border-radius:6px;font:12px/1.7 system-ui;padding:12px;pointer-events:auto}
       #error:empty{display:none}
     </style><div class="dock" role="toolbar" aria-label="TapNow 资产备份">
       <button class="grip" title="拖动备份入口" aria-label="拖动备份入口"></button>

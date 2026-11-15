@@ -24,6 +24,16 @@ jobs:
       - run: npm test
       - run: npm audit --audit-level=high
       - run: npm run extension:zip
+      - name: Verify ACU extension layouts and interactions
+        run: |
+          npx playwright install --with-deps chromium
+          node scripts/check-acu-ui.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: acu-plugin-ui
+          path: artifacts/private/acu-ui/*.png
+          if-no-files-found: ignore
       - run: node scripts/runtime-channel.mjs
       - uses: actions/upload-artifact@v4
         with:

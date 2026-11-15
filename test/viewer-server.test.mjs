@@ -35,7 +35,10 @@ test("viewer serves only recorded local media and supports byte ranges", async (
       });
       child.on("error", reject);
     });
-    let response = await fetch(`${base}/api/media/a`);
+    let response = await fetch(`${base}/acu-theme.css`);
+    assert.equal(response.status, 200, "standalone viewer can load the shared extension theme");
+    assert.match(response.headers.get("content-type"), /text\/css/);
+    response = await fetch(`${base}/api/media/a`);
     assert.equal(response.status, 200); assert.equal(await response.text(), "0123456789");
     assert.equal(response.headers.get("content-type"), "image/png");
     assert.equal(response.headers.get("cache-control"), "private, no-store");

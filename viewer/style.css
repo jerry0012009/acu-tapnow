@@ -1,4 +1,5 @@
-:root{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:#253a3b;background:#f7f9f8;font-size:14px;letter-spacing:0}
+@import "./acu-theme.css";
+:root{font-size:13px}
 *{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}button,select{cursor:pointer}
 button{border:1px solid #cbd7d5;border-radius:5px;background:#fff;color:inherit;padding:8px 12px;min-height:36px}
 button:hover{background:#edf4f1}button:disabled{opacity:.45;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #7baea7;outline-offset:2px}
@@ -80,3 +81,52 @@ th{background:#edf3ee;position:sticky;top:0}td{max-width:520px;overflow-wrap:any
   .graph-legend{font-size:9px;gap:5px}.legend-caption{display:none}
   .expanded{overflow:auto}.expanded .graph-workspace{height:auto}.expanded .graph-area{height:65dvh}.inspector-heading h2{font-size:18px}
 }
+
+/* Viewer surfaces share the extension theme; media remain unfiltered. */
+button { border-color: var(--acu-line); background: var(--acu-raised); color: var(--acu-text); }
+button:hover { background: var(--acu-hover); }
+button:focus-visible,input:focus-visible,select:focus-visible { outline-color: var(--acu-accent); }
+input,select { border-color: var(--acu-line); background: var(--acu-bg); color: var(--acu-text); }
+header { background: var(--acu-surface); border-color: var(--acu-line); padding: 18px 24px; }
+h1 { font-size: 20px; font-weight: 600; }
+h1 span,#subtitle { color: var(--acu-muted); }
+#producer { color: var(--acu-secondary); background: var(--acu-raised); }
+.metrics,.metric,.tabs,.graph-workspace,#inspector,.inspector-section,details,.table-wrap,th,td { border-color: var(--acu-line); }
+.metric strong { font-weight: 550; }
+.metric span,.section-head,.node-badge,.inspector-heading code,.section-title span,dt,.muted,.asset-load small,.asset-row summary,.graph-search svg,.legend-caption { color: var(--acu-muted); }
+.coverage { background: var(--acu-raised); }
+#coverage-bar { background: var(--acu-accent); }
+.tab { background: transparent; color: var(--acu-muted); }
+.tab:hover { background: var(--acu-surface); }
+.tab.active { color: var(--acu-accent); border-color: var(--acu-accent); }
+.segmented { background: var(--acu-surface); border: 1px solid var(--acu-line); }
+.segmented label { color: var(--acu-muted); }
+.segmented label:has(input:checked) { background: var(--acu-raised); color: var(--acu-text); box-shadow: none; }
+.segmented label:has(input:focus-visible) { outline-color: var(--acu-accent); }
+.graph-workspace { background: var(--acu-bg); }
+.graph-area { background-color: #151719; background-image: radial-gradient(#383c43 .8px,transparent .8px); }
+.graph-legend { background: #191b1ef5; border-color: var(--acu-line); color: var(--acu-secondary); }
+.graph-bottom,#graph-loading { background: var(--acu-surface); border-color: var(--acu-line); color: var(--acu-muted); }
+#inspector { background: var(--acu-surface); }
+.status { background: #1b3029; color: var(--acu-success); }
+.status.partial,.status.missing { background: var(--acu-accent-soft); color: var(--acu-accent); }
+.status.text { background: #242c38; color: #a9c4f3; }
+.media-preview { background: var(--acu-bg); border-color: var(--acu-line); color: var(--acu-muted); }
+.media-preview img { background: var(--acu-bg); }
+.download-link,.link-button { color: var(--acu-accent); }
+.asset-row { border-color: var(--acu-line); }
+.asset-role-summary { color: var(--acu-secondary); background: var(--acu-bg); border-color: var(--acu-accent); }
+.asset-load { background: transparent; }
+.asset-load svg { color: var(--acu-muted); }
+.prompt,dd,.audit-grid p { color: var(--acu-secondary); }
+.audit-grid>div { background: var(--acu-surface); border-color: var(--acu-line); }
+.relation-link,pre { background: var(--acu-bg); color: var(--acu-secondary); }
+summary { color: var(--acu-secondary); }
+.empty { color: var(--acu-muted); }
+.error { color: var(--acu-danger); }
+th { background: var(--acu-raised); color: var(--acu-secondary); font-weight: 500; }
+.expanded { background: var(--acu-bg); }
+.green { background: var(--acu-success); }
+.amber { background: var(--acu-accent); }
+.blue { background: #a9c4f3; }
+.gray { background: var(--acu-muted); }

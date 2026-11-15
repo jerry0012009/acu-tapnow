@@ -2,6 +2,9 @@ import { browser } from "wxt/browser";
 import { loadCompanionSettings } from "../../utils/companion-settings";
 import { parseRuntimeConfig, type RuntimeConfig } from "../../utils/runtime-config";
 import { bindRuntimePopup } from "../../utils/runtime-popup";
+import { createIcons, SlidersHorizontal, ShieldCheck, Link2, Save } from "lucide";
+import "../../viewer/acu-theme.css";
+import "../../utils/acu-popup.css";
 import {
   normalizeSettings,
   type ReviewSettings
@@ -14,64 +17,50 @@ import {
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
-  <style>
-    :root { color-scheme: light; font-family: system-ui, -apple-system, sans-serif; }
-    body { width: 330px; margin: 0; padding: 16px; color: #0f172a; background: #f8fafc; }
-    h1 { margin: 0 0 4px; font-size: 17px; }
-    p { margin: 0 0 14px; color: #64748b; font-size: 12px; line-height: 1.4; }
-    label { display: block; margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: #475569; }
-    input[type="text"], input[type="password"], textarea, select { box-sizing: border-box; width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; font: 13px/1.4 system-ui, sans-serif; }
-    textarea { min-height: 52px; resize: vertical; }
-    .row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-    .row label { margin: 0; font-weight: 600; color: #0f172a; }
-    button { width: 100%; margin-top: 14px; min-height: 36px; border: 0; border-radius: 6px; background: #2563eb; color: white; font: 600 13px system-ui, sans-serif; cursor: pointer; }
-    button:disabled { opacity: .45; cursor: not-allowed; }
-    input[type="file"] { max-width: 100%; font-size: 12px; }
-    .section { border-top: 1px solid #e2e8f0; margin-top: 15px; padding-top: 3px; }
-    .hint { color: #64748b; font-size: 11px; line-height: 1.4; margin-top: 5px; }
-    #status { min-height: 18px; margin-top: 8px; color: #15803d; font-size: 12px; }
-  </style>
-  <h1>TapNow Companion 0.1</h1>
-  <p>TapNow 节点审阅</p>
-  <div class="row"><input id="enabled" type="checkbox"><label for="enabled">启用副驾驶</label></div>
-  <div class="row"><input id="llmEnabled" type="checkbox"><label for="llmEnabled">启用模型审阅</label></div>
-  <div class="row"><input id="llmIncludeImages" type="checkbox"><label for="llmIncludeImages">检测时发送图片与视频采样画面</label></div>
-  <div class="section">
-    <button id="runtime-connect" type="button">连接 ACU Runtime</button>
-    <p id="runtime-status" role="status"></p>
-    <details><summary>手动导入配置</summary>
-    <label for="runtime-config">ACU Runtime 接入配置</label>
+  <header class="popup-header"><div class="acu-brand"><span class="acu-mark" aria-hidden="true">A</span><div><span class="acu-wordmark">ACU <span class="acu-edition">TapNow · 副驾驶</span></span></div></div><span class="acu-version">v${browser.runtime.getManifest().version}</span></header>
+  <main class="popup-content">
+  <section class="popup-section" aria-label="审阅设置">
+    <h1 class="section-heading"><i data-lucide="sliders-horizontal" aria-hidden="true"></i>审阅设置</h1>
+    <label class="toggle-row" for="enabled"><span>启用副驾驶<small>画布内节点检测入口</small></span><input id="enabled" type="checkbox"></label>
+    <label class="toggle-row" for="llmEnabled"><span>模型审阅</span><input id="llmEnabled" type="checkbox"></label>
+    <label class="toggle-row" for="llmIncludeImages"><span>图片与视频采样画面<small>检测时随节点内容发送</small></span><input id="llmIncludeImages" type="checkbox"></label>
+  </section>
+  <section class="popup-section" aria-label="ACU Runtime">
+    <div class="runtime-row"><div><strong>ACU Runtime</strong><small>本机连接</small></div><button id="runtime-connect" type="button" aria-label="连接 ACU Runtime"><i data-lucide="link-2" aria-hidden="true"></i>连接</button></div>
+    <p id="runtime-status" class="acu-status" role="status"></p>
+  </section>
+  <section class="popup-section" aria-label="团队规则"><h2 class="section-heading"><i data-lucide="shield-check" aria-hidden="true"></i>团队规则</h2>
+    <label class="field-label" for="requiredTerms">要求词</label>
+    <textarea id="requiredTerms" placeholder="例如：电影感, 品牌色"></textarea>
+    <label class="field-label" for="forbiddenTerms">禁用词</label>
+    <textarea id="forbiddenTerms" placeholder="例如：未授权品牌"></textarea>
+    <p class="hint">多个词用逗号或换行分隔。</p>
+  </section>
+  <section class="popup-section"><details id="advanced-settings"><summary>模型与高级设置</summary>
+    <label class="field-label" for="llmPrompt">审阅提示词</label>
+    <textarea id="llmPrompt" maxlength="${MAX_LLM_PROMPT_LENGTH}" placeholder="用于指导模型审阅当前节点，只输出 JSON 结果。"></textarea>
+    <p class="hint">最多 ${MAX_LLM_PROMPT_LENGTH.toLocaleString()} 字符 · 节点文字预算 ${MAX_REVIEW_TEXT_CHARS.toLocaleString()} 字符 · 请求体 ${(MAX_REVIEW_REQUEST_BYTES / 1_000_000).toFixed(0)} MB。</p>
+    <label class="field-label" for="llmProtocol">接口协议</label>
+    <select id="llmProtocol"><option value="responses">Responses</option><option value="chat_completions">Chat Completions</option></select>
+    <label class="field-label" for="llmModel">模型</label>
+    <input id="llmModel" type="text" placeholder="gpt-6.1-sol">
+    <label class="field-label" for="llmBaseUrl">API Base URL</label>
+    <input id="llmBaseUrl" type="text" placeholder="https://api.acucompute.com/v1">
+    <label class="field-label" for="apiKey">API Key</label>
+    <input id="apiKey" type="password" placeholder="留空表示不修改已保存的 Key" autocomplete="off">
+    <p class="hint">Key 仅存于本机，不同步到 Chrome 账号。检测使用当前 ACU Key，图片、视频与音频分析可能产生费用。</p>
+    <details class="import-settings"><summary>手动导入配置</summary>
+    <label class="field-label" for="runtime-config">ACU Runtime 接入配置</label>
     <input id="runtime-config" type="file" accept=".json,application/json">
-    <p id="runtime-preview" role="status"></p>
+    <p id="runtime-preview" class="acu-status" role="status"></p>
     <button id="runtime-import" type="button" disabled>确认替换模型与 Key</button>
     <div class="hint">Key 仅保存在本机。检测会发送节点文字与勾选的图片，可能产生费用；导入后请删除配置文件。</div>
-    </details>
-  </div>
-  <label for="requiredTerms">团队要求词（逗号或换行分隔）</label>
-  <textarea id="requiredTerms" placeholder="例如：电影感, 品牌色"></textarea>
-  <label for="forbiddenTerms">团队禁用词（逗号或换行分隔）</label>
-  <textarea id="forbiddenTerms" placeholder="例如：未授权品牌"></textarea>
-    <div class="section">
-    <label for="llmPrompt">LLM 审阅提示词</label>
-    <textarea id="llmPrompt" maxlength="${MAX_LLM_PROMPT_LENGTH}" placeholder="用于指导模型审阅当前节点，只输出 JSON 结果。"></textarea>
-    <div class="hint">检测时作为 system/instructions 发送，最多 ${MAX_LLM_PROMPT_LENGTH.toLocaleString()} 字符。</div>
-    <div class="hint">节点文字总预算 ${MAX_REVIEW_TEXT_CHARS.toLocaleString()} 字符，请求体预算 ${(MAX_REVIEW_REQUEST_BYTES / 1_000_000).toFixed(0)} MB。</div>
-    <label for="llmProtocol">接口协议</label>
-    <select id="llmProtocol">
-      <option value="responses">Responses</option>
-      <option value="chat_completions">Chat Completions</option>
-    </select>
-    <label for="llmModel">模型</label>
-    <input id="llmModel" type="text" placeholder="gpt-6.1-sol">
-    <label for="llmBaseUrl">API Base URL</label>
-    <input id="llmBaseUrl" type="text" placeholder="https://api.acucompute.com/v1">
-    <label for="apiKey">API Key</label>
-    <input id="apiKey" type="password" placeholder="留空表示不修改已保存的 Key">
-    <div class="hint">检测使用当前 ACU Key，视频可包含画面与音频分析，可能产生费用。Key 不会同步到 Chrome 账号。</div>
-  </div>
-  <button id="save" type="button">保存设置</button>
-  <div id="status" role="status"></div>
+    </details></details></section>
+    <p class="hint" style="margin-bottom:16px">检测会发送节点内容，并可能使用 ACU 余额。</p>
+  </main>
+  <footer class="popup-footer"><button id="save" class="primary" type="button"><i data-lucide="save" aria-hidden="true"></i>保存设置</button><div id="status" class="acu-status" role="status"></div></footer>
 `;
+createIcons({ icons: { SlidersHorizontal, ShieldCheck, Link2, Save } });
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -91,21 +80,31 @@ const { settings, apiKey: configuredKey } = await loadCompanionSettings(browser.
   : "sk-...";
 
 $("save").addEventListener("click", async () => {
-  const next: ReviewSettings = normalizeSettings({
-    enabled: ($("enabled") as HTMLInputElement).checked,
-    llmEnabled: ($("llmEnabled") as HTMLInputElement).checked,
-    llmIncludeImages: ($("llmIncludeImages") as HTMLInputElement).checked,
-    llmPrompt: ($("llmPrompt") as HTMLTextAreaElement).value,
-    llmProtocol: ($("llmProtocol") as HTMLSelectElement).value as ReviewSettings["llmProtocol"],
-    llmModel: ($("llmModel") as HTMLInputElement).value,
-    llmBaseUrl: ($("llmBaseUrl") as HTMLInputElement).value,
-    requiredTerms: ($("requiredTerms") as HTMLTextAreaElement).value.split(/[,\n]/),
-    forbiddenTerms: ($("forbiddenTerms") as HTMLTextAreaElement).value.split(/[,\n]/)
-  });
-  const apiKey = ($("apiKey") as HTMLInputElement).value.trim();
-  await browser.storage.sync.set(next);
-  await browser.storage.local.set({ runtimeConnection: null, ...(apiKey ? { apiKey } : {}) });
-  $("status").textContent = "已保存。刷新 TapNow 页面后生效。";
+  const saveButton = $<HTMLButtonElement>("save");
+  saveButton.disabled = true;
+  $("status").dataset.state = "busy";
+  $("status").textContent = "正在保存…";
+  try {
+    const next: ReviewSettings = normalizeSettings({
+      enabled: ($("enabled") as HTMLInputElement).checked,
+      llmEnabled: ($("llmEnabled") as HTMLInputElement).checked,
+      llmIncludeImages: ($("llmIncludeImages") as HTMLInputElement).checked,
+      llmPrompt: ($("llmPrompt") as HTMLTextAreaElement).value,
+      llmProtocol: ($("llmProtocol") as HTMLSelectElement).value as ReviewSettings["llmProtocol"],
+      llmModel: ($("llmModel") as HTMLInputElement).value,
+      llmBaseUrl: ($("llmBaseUrl") as HTMLInputElement).value,
+      requiredTerms: ($("requiredTerms") as HTMLTextAreaElement).value.split(/[,\n]/),
+      forbiddenTerms: ($("forbiddenTerms") as HTMLTextAreaElement).value.split(/[,\n]/)
+    });
+    const apiKey = ($("apiKey") as HTMLInputElement).value.trim();
+    await browser.storage.sync.set(next);
+    await browser.storage.local.set({ runtimeConnection: null, ...(apiKey ? { apiKey } : {}) });
+    $("status").dataset.state = "success";
+    $("status").textContent = "已保存。刷新 TapNow 页面后生效。";
+  } catch {
+    $("status").dataset.state = "error";
+    $("status").textContent = "设置未完整保存，请重试。";
+  } finally { saveButton.disabled = false; }
 });
 bindRuntimePopup($<HTMLButtonElement>("runtime-connect"), $("runtime-status"), "companion", browser.runtime, browser.storage.local, async () => {
   const {settings} = await loadCompanionSettings(browser.storage);

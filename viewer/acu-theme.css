@@ -1,0 +1,62 @@
+:root, :host {
+  color-scheme: dark;
+  --acu-bg: #111214;
+  --acu-surface: #191b1e;
+  --acu-raised: #222529;
+  --acu-hover: #2b2e33;
+  --acu-line: #35383e;
+  --acu-text: #f2f3f5;
+  --acu-secondary: #c4c7ce;
+  --acu-muted: #9a9fa9;
+  --acu-accent: #ff9c42;
+  --acu-on-accent: #1b120a;
+  --acu-accent-soft: #33261d;
+  --acu-success: #7dd7b0;
+  --acu-danger: #ff9a9a;
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif;
+  font-size: 13px;
+  letter-spacing: 0;
+  color: var(--acu-text);
+  background: var(--acu-bg);
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input, select, textarea { font: inherit; }
+button, a, input, select, textarea, summary { -webkit-tap-highlight-color: transparent; }
+button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 9px 13px; border: 1px solid var(--acu-line); border-radius: 6px; color: var(--acu-text); background: var(--acu-raised); cursor: pointer; font-weight: 550; transition: background .15s, border-color .15s; }
+button:hover:not(:disabled) { background: var(--acu-hover); border-color: #646a75; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.primary { color: var(--acu-on-accent); background: var(--acu-accent); border-color: var(--acu-accent); font-weight: 650; }
+button.primary:hover:not(:disabled) { background: #ffb265; border-color: #ffb265; }
+button svg, a svg { width: 17px; height: 17px; flex-shrink: 0; stroke-width: 1.7; }
+input, select, textarea { min-width: 0; max-width: 100%; border: 1px solid var(--acu-line); border-radius: 6px; background: var(--acu-bg); color: var(--acu-text); padding: 10px 11px; }
+input::placeholder, textarea::placeholder { color: #858b96; opacity: 1; }
+textarea { line-height: 1.7; resize: vertical; }
+button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--acu-accent); outline-offset: 3px; }
+input[type="checkbox"] { accent-color: var(--acu-accent); }
+a { color: var(--acu-accent); text-underline-offset: 4px; }
+p { line-height: 1.75; overflow-wrap: anywhere; }
+h1, h2, h3, p { margin-top: 0; }
+h1 { font-size: 24px; line-height: 1.35; font-weight: 650; }
+h2 { font-size: 16px; font-weight: 600; }
+summary { cursor: pointer; color: var(--acu-secondary); }
+[hidden] { display: none !important; }
+.acu-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.acu-mark { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; color: var(--acu-accent); border: 1px solid #66503d; border-radius: 7px; background: var(--acu-surface); font-size: 20px; font-weight: 700; }
+.acu-wordmark { display: block; font-size: 15px; font-weight: 650; line-height: 1.4; }
+.acu-edition { display: block; color: var(--acu-muted); font-size: 11px; line-height: 1.5; }
+.acu-version { margin-left: auto; color: var(--acu-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.acu-brandbar { display: flex; align-items: center; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--acu-line); margin-bottom: 28px; }
+.acu-brandbar .acu-brand { flex: 1; }
+.acu-eyebrow { color: var(--acu-accent); font-size: 11px; font-weight: 600; margin-bottom: 9px; }
+.acu-status { color: var(--acu-secondary); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.acu-status:empty { display: none; }
+.acu-status[data-state="busy"] { color: var(--acu-accent); }
+.acu-status[data-state="success"] { color: var(--acu-success); }
+.acu-status[data-state="error"] { color: var(--acu-danger); }
+.acu-icon-button { width: 34px; height: 34px; min-height: 34px; padding: 0; }
+progress { accent-color: var(--acu-accent); height: 6px; border: 0; border-radius: 3px; overflow: hidden; background: var(--acu-raised); }
+progress::-webkit-progress-bar { background: var(--acu-raised); }
+progress::-webkit-progress-value { background: var(--acu-accent); }
+progress::-moz-progress-bar { background: var(--acu-accent); }
+@media(prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }

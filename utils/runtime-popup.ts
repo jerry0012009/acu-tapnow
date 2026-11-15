@@ -14,9 +14,11 @@ export function bindRuntimePopup(
     if (busy) return;
     busy = true; button.disabled = true;
     status.textContent = "正在连接…";
+    if (status.dataset) status.dataset.state = "busy";
     try {
       await navigator.locks.request("acu-runtime-connection", () => connectRuntime(edition, runtime, storage));
       await onConnected();
+      if (status.dataset) status.dataset.state = "success";
       status.textContent = edition === "companion"
         ? "已连接。刷新 TapNow 画布后开始检测。"
         : "已连接。打开画布后点击“备份当前画布”。";
@@ -33,11 +35,13 @@ export function bindRuntimePopup(
         } else if (edition === "backup" && saved.runtimeBackupVersion) usable = true;
       }
       if (usable) {
+        if (status.dataset) status.dataset.state = "saved";
         await onConnected();
         status.textContent = edition === "companion"
           ? "本机配置已保存，可直接使用副驾驶。更新 Key 或模型时，在 Runtime 的副驾驶一栏点击“更新并配置”。"
           : "本机配置已保存，可直接备份画布。";
       } else {
+        if (status.dataset) status.dataset.state = "error";
         const detail = error instanceof Error ? error.message : "本机连接暂不可用";
         status.textContent = `${detail}。在 Runtime 的“${edition === "companion" ? "副驾驶" : "资产备份"}”一栏点击“重新连接”，再在这里重试。`;
       }

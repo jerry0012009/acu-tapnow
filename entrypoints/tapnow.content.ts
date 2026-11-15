@@ -1,5 +1,7 @@
 import { browser } from "wxt/browser";
-import { createElement, GripVertical, RotateCcw } from "lucide";
+import { createElement, GripVertical, RotateCcw, X, ScanLine, Sparkles } from "lucide";
+import acuTheme from "../viewer/acu-theme.css?inline";
+import panelStyle from "../utils/companion-panel.css?inline";
 import { companionRoute } from "../utils/tapnow-route";
 import { isVideoMaterial, videoDraftIdentity } from "../utils/video";
 import { loadCompanionSettings } from "../utils/companion-settings";
@@ -144,44 +146,7 @@ export default defineContentScript({
       host.id = "tapnow-companion-host";
       const shadow = host.attachShadow({ mode: "open" });
       shadow.innerHTML = `
-        <style>
-          :host { all: initial; position:fixed; inset:0; width:100%; height:100%; margin:0; padding:0; border:0; background:transparent; pointer-events:none; z-index:2147483647; }
-          .dock { position:fixed; right:20px; bottom:190px; display:flex; align-items:center; gap:5px; max-width:calc(100vw - 16px); padding:5px; border:1px solid #bdc9cf; border-radius:8px; background:#fff; box-shadow:0 3px 12px #17212b26; pointer-events:auto; z-index:2; }
-          .dock button { border:0; border-radius:5px; min-height:34px; padding:6px 9px; font:600 13px/1.2 system-ui,sans-serif; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:5px; }
-          .dock button:disabled { opacity:.5;cursor:not-allowed; }
-          .dock button[hidden] { display:none; }
-          .launcher { background:#263743; color:white; }
-          .dock .grip,.dock .reset-position { background:transparent;color:#55646d;padding:5px; }
-          .dock svg { width:16px;height:16px; }
-          .dock .grip { cursor:grab;touch-action:none;user-select:none; }
-          .dock .grip.dragging { cursor:grabbing; }
-          .panel { pointer-events:auto; }
-          .panel { position: fixed; top: 16px; right: 16px; bottom: 16px; width: min(400px, calc(100vw - 32px)); z-index: 2147483646; display: flex; flex-direction: column; background: #f8fafc; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 10px; box-shadow: 0 18px 50px rgba(15, 23, 42, .28); font: 14px/1.45 system-ui, -apple-system, sans-serif; }
-          .hidden { display: none; }
-          .header { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-bottom: 1px solid #e2e8f0; }
-          .header strong { font-size: 16px; }
-          .close { border: 0; background: transparent; color: #475569; font-size: 20px; cursor: pointer; }
-          .body { overflow: auto; padding: 16px; }
-          .meta { color: #64748b; font-size: 12px; margin-bottom: 12px; word-break: break-all; }
-          .label { color: #475569; font-size: 12px; font-weight: 700; margin: 14px 0 6px; }
-          .prompt, .context { white-space: pre-wrap; overflow-wrap: anywhere; background: white; border: 1px solid #e2e8f0; border-radius: 7px; padding: 10px; margin: 0; }
-          .prompt { max-height: 150px; overflow: auto; }
-          .context { max-height: 110px; overflow: auto; color: #475569; }
-          .materials { color: #475569; font-size: 12px; }
-          .issue { border-left: 4px solid #f59e0b; background: #fffbeb; padding: 9px 10px; margin: 8px 0; border-radius: 5px; }
-          .issue.block { border-left-color: #dc2626; background: #fef2f2; }
-          .issue.allow { border-left-color: #16a34a; background: #f0fdf4; }
-          .issue strong { display: block; margin-bottom: 2px; }
-          .suggestion { color: #334155; margin: 7px 0; }
-          .llm { border-top: 1px solid #e2e8f0; margin-top: 14px; padding-top: 4px; }
-          .debug { margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 10px; color: #64748b; font-size: 12px; }
-          .debug summary { cursor: pointer; font-weight: 700; }
-          .debug pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; margin: 8px 0 0; padding: 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; font: 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; color: #334155; }
-          .footer { display: flex; gap: 8px; padding: 14px 16px; border-top: 1px solid #e2e8f0; }
-          button.action { flex: 1; min-height: 38px; border: 1px solid #cbd5e1; border-radius: 7px; cursor: pointer; font: 600 13px system-ui, sans-serif; }
-          button.primary { background: #0f766e; color: white; border-color: #0f766e; }
-          .notice { color: #64748b; font-size: 12px; margin-top: 10px; }
-        </style>
+        <style>${acuTheme}\n${panelStyle}</style>
         <div class="dock" role="toolbar" aria-label="TapNow 插件">
           <button class="grip" title="拖动插件入口" aria-label="拖动插件入口"></button>
           <button class="launcher" type="button" title="审阅当前聚焦节点">副驾驶</button>
@@ -189,8 +154,8 @@ export default defineContentScript({
         </div>
         <section class="panel hidden" aria-label="TapNow Companion 审核面板">
           <header class="header">
-            <strong>当前节点检测</strong>
-            <button class="close" type="button" aria-label="关闭">×</button>
+            <div class="acu-brand"><span class="acu-mark" aria-hidden="true">A</span><div><span class="acu-wordmark">ACU 副驾驶</span><span class="acu-edition">当前节点检测</span></div></div>
+            <button class="close" type="button" aria-label="关闭" title="关闭"></button>
           </header>
           <div class="body"></div>
           <footer class="footer">
@@ -220,6 +185,9 @@ export default defineContentScript({
       const close = shadow.querySelector<HTMLButtonElement>(".close")!;
       const closeAction = shadow.querySelector<HTMLButtonElement>(".close-action")!;
       const detectButton = shadow.querySelector<HTMLButtonElement>(".detect")!;
+      close.append(createElement(X));
+      detectButton.prepend(createElement(ScanLine));
+      launcher.prepend(createElement(Sparkles));
 
       function textOf(element: Element | null | undefined): string {
         const candidate = element as (Element & { value?: string }) | null | undefined;

@@ -5,33 +5,23 @@ import { downloadToDirectory, indexReferences, reconcileAssets, localFile, write
 import { canvasIdFromUrl, sourceMatches } from "../../utils/backup/source";
 import { directoryHandle } from "../../utils/backup/handles";
 import { createIcons, FolderOpen, RefreshCw, ScanSearch, ExternalLink, Download, Pause } from "lucide";
+import "../../viewer/acu-theme.css";
+import "./style.css";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
-<style>
-:root{font-family:system-ui,sans-serif;color:#17212b;background:#f5f7f8}*{box-sizing:border-box}body{max-width:1000px;margin:auto;padding:24px}
-h1{font-size:24px}h2{font-size:18px;margin:0}p{overflow-wrap:anywhere}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0}
-button,input,select{font:inherit;padding:9px 12px;border:1px solid #bdc8cd;border-radius:6px;background:#fff}button{cursor:pointer}
-button{display:inline-flex;align-items:center;justify-content:center;gap:7px}button svg{width:17px;height:17px;flex-shrink:0}button:disabled{opacity:.5;cursor:not-allowed}
-.primary{background:#126f5e;color:#fff}.muted{color:#52616d;font-size:13px}#status{white-space:pre-wrap;line-height:1.55}
-.metrics{display:flex;gap:24px;flex-wrap:wrap;border-block:1px solid #d6dfe2;padding:16px 0}.metrics b{display:block;font-size:22px;margin-top:5px}
-progress{width:100%;height:18px}.step{padding:18px 0;border-top:1px solid #d6dfe2}.step-label{font-size:13px;color:#52616d;margin-bottom:12px}
-#canvas{flex:1;min-width:0;max-width:100%}#target-name{font-size:22px;overflow-wrap:anywhere;margin:8px 0}#target-id{overflow-wrap:anywhere;font-size:13px}
-#connection{color:#126f5e;font-size:13px}#limit{width:110px}#destination{font-size:13px;color:#52616d;overflow-wrap:anywhere}
-@media(max-width:600px){body{padding:16px}.row #canvas{flex-basis:100%}h1{font-size:22px}#target-name{font-size:20px}.metrics{gap:16px}}
-</style>
-<h1>TapNow 资产备份中心</h1>
-<button id="open-library"><i data-lucide="folder-open"></i>查看本地备份</button>
-<section class="step"><div class="step-label">1. 备份画布</div>
+<header class="acu-brandbar"><div class="acu-brand"><span class="acu-mark" aria-hidden="true">A</span><div><span class="acu-wordmark">ACU</span><span class="acu-edition">TapNow · 资产备份</span></div></div><span class="acu-version">本地工作空间</span></header>
+<div class="backup-heading"><div><h1>资产备份中心</h1><p>TapNow 画布与资源</p></div><button id="open-library"><i data-lucide="folder-open" aria-hidden="true"></i>查看本地备份</button></div>
+<section class="step"><div class="step-label"><span>01</span>备份画布</div>
 <div class="row"><select id="canvas" aria-label="选择备份画布"></select><button id="refresh-tabs" title="更新已打开的画布列表"><i data-lucide="refresh-cw"></i>更新列表</button></div>
 <h2 id="target-name">尚未选择画布</h2><div id="target-id"></div><p id="origin" class="muted"></p>
 <div class="row"><span id="connection">未连接</span><button id="source" disabled><i data-lucide="external-link"></i>查看原画布</button><button id="connect" disabled><i data-lucide="refresh-cw"></i>重新连接</button></div>
 <button id="scan" class="primary" disabled><i data-lucide="scan-search"></i>扫描此画布</button><p id="scan-summary" class="muted">尚未扫描</p></section>
-<section class="step"><div class="step-label">2. 保存位置</div>
+<section class="step"><div class="step-label"><span>02</span>保存位置</div>
 <div class="row"><button id="choose"><i data-lucide="folder-open"></i>选择备份目录</button><span id="directory">未选择</span></div>
 <p id="destination">未选择保存目录</p>
 <div class="row"><label>本轮新增上限 <input id="limit" type="number" value="20" min="0.1" step="0.1"> GiB</label><span class="muted">用户设定上限，非磁盘剩余空间</span></div>
-</section><section class="step"><div class="step-label">3. 执行备份</div>
+</section><section class="step"><div class="step-label"><span>03</span>执行备份</div>
 <div class="row"><button id="backup" class="primary" disabled><i data-lucide="download"></i>开始 / 增量补齐</button><button id="pause" disabled><i data-lucide="pause"></i>暂停</button></div>
 <div class="metrics"><span>节点 / 连线<b id="graph">-</b></span><span>引用 / 唯一目标<b id="assets">-</b></span><span>已验证 / 待处理 / 失败<b id="counts">-</b></span><span>已写入<b id="bytes">0 GB</b></span></div>
 <progress id="progress" max="1" value="0"></progress><p id="status" role="status">正在读取来源画布...</p></section>`;
