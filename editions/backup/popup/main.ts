@@ -1,6 +1,9 @@
 import { browser } from "wxt/browser";
 import { createIcons, Download, FolderOpen } from "lucide";
 import "./style.css";
+import { bindRuntimePopup } from "../../../utils/runtime-popup";
+bindRuntimePopup(document.getElementById("runtime-connect") as HTMLButtonElement,
+  document.getElementById("runtime-status")!, "backup", browser.runtime, browser.storage.local);
 createIcons({ icons: { Download, FolderOpen } });
 for (const [id, type] of [["backup", "tapnow:open-backup"], ["library", "tapnow:open-library"]]) {
   document.getElementById(id)!.onclick = async () => {

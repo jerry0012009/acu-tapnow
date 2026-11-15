@@ -1,6 +1,7 @@
 import { browser } from "wxt/browser";
 import { loadCompanionSettings } from "../../utils/companion-settings";
 import { parseRuntimeConfig, type RuntimeConfig } from "../../utils/runtime-config";
+import { bindRuntimePopup } from "../../utils/runtime-popup";
 import {
   normalizeSettings,
   type ReviewSettings
@@ -37,6 +38,7 @@ app.innerHTML = `
   <div class="row"><input id="llmIncludeImages" type="checkbox"><label for="llmIncludeImages">检测时发送图片素材</label></div>
   <div class="section">
     <button id="runtime-connect" type="button">连接 ACU Runtime</button>
+    <p id="runtime-status" role="status"></p>
     <details><summary>手动导入配置</summary>
     <label for="runtime-config">ACU Runtime 接入配置</label>
     <input id="runtime-config" type="file" accept=".json,application/json">
@@ -105,7 +107,15 @@ $("save").addEventListener("click", async () => {
   await browser.storage.local.set({ runtimeConnection: null, ...(apiKey ? { apiKey } : {}) });
   $("status").textContent = "已保存。刷新 TapNow 页面后生效。";
 });
-$("runtime-connect").addEventListener("click", () => { void browser.tabs.create({ url: browser.runtime.getURL("/connect.html") }); });
+bindRuntimePopup($<HTMLButtonElement>("runtime-connect"), $("runtime-status"), "companion", browser.runtime, browser.storage.local, async () => {
+  const {settings} = await loadCompanionSettings(browser.storage);
+  for (const id of ["llmBaseUrl", "llmModel", "llmProtocol"] as const) {
+    $<HTMLInputElement | HTMLSelectElement>(id).value = settings[id];
+  }
+  $<HTMLInputElement>("llmEnabled").checked = settings.llmEnabled;
+  $<HTMLInputElement>("apiKey").value = "";
+  $<HTMLInputElement>("apiKey").placeholder = "已配置，留空表示不修改";
+});
 
 let pendingConfig: RuntimeConfig | null = null;
 let importGeneration = 0;
