@@ -26,14 +26,14 @@ export default defineConfig({
   manifest: {
     key: identity.key,
     name: backup ? "TapNow Backup - 资产备份与本地画布" : "TapNow Companion - 副驾驶",
-    version: "0.1.23",
+    version: "0.1.24",
     description: backup ? "Back up TapNow canvases, browse local assets and verify file integrity." : "Review focused TapNow nodes, prompts and references.",
     permissions: backup ? ["storage", "tabs", "scripting", "declarativeNetRequestWithHostAccess", "nativeMessaging"] : ["storage", "nativeMessaging"],
     host_permissions: [
       "https://app.tapnow.ai/*",
       "https://files.tapnow.media/*",
       "https://files.tapnow.top/*",
-      ...(!backup ? ["https://api.openai.com/*", "https://api.acucompute.com/*", "https://acu.best/*"] : [])
+      ...(!backup ? ["https://api.openai.com/*", "https://*.acucompute.com/*", "https://*.acu.best/*"] : [])
     ],
     action: {
       default_title: backup ? "TapNow 资产备份" : "TapNow 副驾驶"

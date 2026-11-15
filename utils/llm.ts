@@ -6,6 +6,7 @@ import type {
 } from "./reviewer";
 import { DEFAULT_LLM_PROMPT } from "./reviewer";
 import { videoFrameImages } from "./video";
+import { normalizeAcuEndpoint } from "./acu-endpoint";
 import {
   MAX_REVIEW_IMAGE_MATERIALS,
   MAX_REVIEW_PROMPT_CHARS,
@@ -506,7 +507,7 @@ function assertOpenAiUrl(baseUrl: string, allowTestEndpoint = false): string {
     ["127.0.0.1", "localhost"].includes(url.hostname);
   if (
     (!testEndpoint && url.protocol !== "https:") ||
-    (!testEndpoint && !["api.openai.com", "api.acucompute.com", "acu.best"].includes(url.hostname)) ||
+    (!testEndpoint && url.hostname !== "api.openai.com" && !isAcuEndpoint(baseUrl)) ||
     url.username !== "" || url.password !== "" || url.search !== "" || url.hash !== ""
   ) {
     throw new Error(
@@ -514,6 +515,10 @@ function assertOpenAiUrl(baseUrl: string, allowTestEndpoint = false): string {
     );
   }
   return url.toString().replace(/\/+$/, "");
+}
+
+function isAcuEndpoint(raw: string): boolean {
+  try { normalizeAcuEndpoint(raw); return true; } catch { return false; }
 }
 
 function retryableFailure(status: number, raw: string): boolean {
