@@ -1,7 +1,9 @@
 # Video reading candidate
 
-Companion reuses Runtime's pinned `claude-video-vision@1.4.0` MCP through the
-existing native host. No second video parser, inference provider or video
+Companion reuses Magpie's pinned `claude-video-vision@1.4.0` MCP through the
+existing native host. Runtime authorizes and forwards requests only; Magpie owns
+preparation, media download, temporary files, decoding and MCP processes.
+No second video parser, inference provider or video
 generation integration is added. Backup remains independent and cannot read
 video through the native host.
 
@@ -17,9 +19,16 @@ omission and image-budget exclusion are not successful inspection. Existing
 output is not assumed to correspond to the current edited generation prompt.
 Changing video identity invalidates late advice. Suggestions remain read-only.
 
-Requires the matching candidate Runtime plus Companion. Older Runtime reports
+Requires the matching candidate Magpie kernel, running Runtime and Companion. Older Runtime reports
 an explicit native-tool error, not a successful visual review. This branch does
 not activate a public ZIP catalog or publish a release.
+
+Native messages remain small URL requests; the host forwards them through the
+authenticated Runtime connection to `/api/library/video/frames`. The result is
+returned without a separate Runtime decoder or MCP process. Dependency setup is
+`/api/library/video/prepare` in Magpie, including when Companion is configured.
+The five-minute Key-configuration grant is not reused to claim or rewrite a Key
+for video requests. The configured Runtime instance must still be running.
 
 Validation: unit tests, both extension builds, and isolated Chromium/native
 host roundtrip. No authorized live-canvas or paid model-quality acceptance was
