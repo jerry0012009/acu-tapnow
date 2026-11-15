@@ -1,0 +1,8 @@
+node_modules/
+artifacts/private/
+.output/
+.wxt/
+.env
+.DS_Store
+/releases/tapnow-*-0.1.23-chrome.zip
+/runtime-channel.json

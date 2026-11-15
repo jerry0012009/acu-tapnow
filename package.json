@@ -1,0 +1,34 @@
+{
+  "name": "tapnow-canvas-audit",
+  "version": "0.1.23",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "audit": "node scripts/audit-canvas.mjs",
+    "export": "node scripts/export-canvas.mjs",
+    "backup:real-canvas": "node scripts/backup-real-canvas.mjs",
+    "viewer": "node scripts/serve-backup-viewer.mjs",
+    "viewer:test": "node scripts/check-viewer-browser.mjs",
+    "viewer:test-types": "node scripts/check-viewer-node-types.mjs",
+    "backup:verify": "node scripts/verify-backup.mjs",
+    "backup:typecheck": "tsc -p tsconfig.backup.json",
+    "record": "node scripts/record-session.mjs",
+    "extension:dev": "wxt --browser chrome",
+    "extension:build": "node scripts/build-editions.mjs build",
+    "extension:zip": "node scripts/build-editions.mjs zip",
+    "extension:test-release": "node scripts/check-library-release.mjs",
+    "companion:test-compat": "node scripts/check-companion-compat.mjs",
+    "test": "tsx --test test/*.test.ts test/*.test.mjs"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.0.1",
+    "cytoscape": "3.33.1",
+    "lucide": "0.468.0",
+    "playwright": "1.62.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.3",
+    "typescript": "5.9.3",
+    "wxt": "0.21.4"
+  }
+}

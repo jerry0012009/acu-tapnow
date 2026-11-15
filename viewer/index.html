@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TapNow 备份查看器</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>TapNow <span>本地资产库</span></h1>
+      <p id="subtitle">正在读取备份目录...</p>
+    </div>
+    <div class="header-actions"><span id="producer"></span><button id="refresh" title="重新读取备份" aria-label="重新读取备份"><i data-lucide="refresh-cw"></i></button></div>
+  </header>
+  <main>
+    <section id="metrics" class="metrics"></section>
+    <section class="band">
+      <div class="section-head"><span>已发现资源的保存比例</span><span id="coverage-note"></span></div>
+      <div class="coverage"><div id="coverage-bar"></div></div>
+    </section>
+    <nav class="tabs" aria-label="详情">
+      <button class="tab active" data-view="graph">关系画布</button>
+      <button class="tab" data-view="assets">资产结果</button>
+      <button class="tab" data-view="references">引用关系</button>
+      <button class="tab" data-view="nodes">节点</button>
+      <button class="tab" data-view="connections">连线</button>
+      <button class="tab" data-view="audit">验收说明</button>
+    </nav>
+    <section id="panel"></section>
+  </main>
+  <script src="/vendor/cytoscape.js"></script>
+  <script src="/vendor/lucide.js"></script>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
