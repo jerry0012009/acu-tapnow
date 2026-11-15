@@ -18,9 +18,10 @@ interface NativeVideoAPI {
   sendNativeMessage(host: string, message: unknown): Promise<any>;
 }
 
-export async function prepareVideoMaterials(draft: ReviewDraft, runtime: NativeVideoAPI): Promise<ReviewDraft> {
+export async function prepareVideoMaterials(draft: ReviewDraft, runtime: NativeVideoAPI,
+  audio?: { baseUrl: string; apiKey: string; model: string }): Promise<ReviewDraft> {
   const videos: NonNullable<ReviewDraft["videoMaterials"]> = [];
-  const deadline = Date.now() + 90_000;
+  const deadline = Date.now() + (audio ? 180_000 : 90_000);
   for (const [index, video] of (draft.videoMaterials || []).entries()) {
     const current = { ...video, frames: [] as NonNullable<typeof video.frames> };
     videos.push(current);
@@ -33,12 +34,15 @@ export async function prepareVideoMaterials(draft: ReviewDraft, runtime: NativeV
       let timer: ReturnType<typeof setTimeout> | undefined;
       const reply = await Promise.race([
         runtime.sendNativeMessage("com.acucompute.video", {
-          action: "video-frames", version: runtime.getManifest().version, url: source.toString()
+          action: "video-frames", version: runtime.getManifest().version, url: source.toString(),
+          ...(audio ? { audio } : {})
         }),
         new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("视频读取超时，请重试")), Math.max(1, deadline - Date.now())); })
       ]).finally(() => clearTimeout(timer));
       if (!reply?.ok || !Array.isArray(reply.content)) throw new Error(reply?.error || "视频读取失败");
       current.omittedFrames = Number(reply.omitted) || 0;
+      current.audio = reply.audio && typeof reply.audio.status === "string"
+        ? reply.audio : { status: "not_analyzed", analyzed: false };
       let timestamp = "unknown";
       const observations: string[] = [];
       let budget = 800_000;
@@ -70,7 +74,7 @@ export function videoFrameImages(draft: ReviewDraft): NonNullable<ReviewDraft["i
     dataUrl: frame.dataUrl,
     sourceNodeId: video.sourceNodeId,
     role: "video-frame",
-    alt: `${video.materialId} at ${frame.timestamp}; ${video.role}; sampled visual frame; audio not analyzed`,
+    alt: `${video.materialId} at ${frame.timestamp}; ${video.role}; sampled visual frame`,
     reference: `${video.materialId} @ ${frame.timestamp}`
   })));
 }

@@ -48,3 +48,31 @@ test("result video identity changes invalidate stale advice", () => {
   changed.videoMaterials![0]!.url = "https://files.tapnow.media/new.mov";
   assert.notEqual(videoDraftIdentity(input), videoDraftIdentity(changed));
 });
+
+test("audio evidence uses the existing local native channel, never the main reviewer key payload", async () => {
+  const audio = { baseUrl: "https://console.acucompute.com/v1", apiKey: "fixture-private-key", model: "gemini-3.8-flash" };
+  const prepared = await prepareVideoMaterials(draft(), {
+    getManifest: () => ({ version: "0.1.28" }),
+    sendNativeMessage: async (_, message: any) => {
+      assert.deepEqual(message.audio, audio);
+      return { ok: true, content: [{ type: "image", data: "aGVsbG8=", mimeType: "image/jpeg" }],
+        audio: { status: "complete", analyzed: true, model: audio.model,
+          transcription: [], audio_tags: [{ start: "00:00:01", end: "00:00:03", tag: "engine accelerating" }] } };
+    }
+  }, audio);
+  const compact = llmInternals.compactDraft(prepared);
+  assert(!compact.includes(audio.apiKey));
+  const evidence = JSON.parse(compact).video_materials[0];
+  assert.equal(evidence.audio_analyzed, true);
+  assert.equal(evidence.audio.audio_tags[0].start, "00:00:01");
+});
+
+test("audio failure does not discard successful visual samples", async () => {
+  const prepared = await prepareVideoMaterials(draft(), { getManifest: () => ({ version: "0.1.28" }),
+    sendNativeMessage: async () => ({ ok: true, content: [{ type: "image", data: "aGVsbG8=", mimeType: "image/jpeg" }],
+      audio: { status: "failed", analyzed: false, error: "Audio unavailable" } })
+  });
+  assert.equal(prepared.videoMaterials![0].frames!.length, 1);
+  assert.equal(prepared.videoMaterials![0].audio!.status, "failed");
+  assert.equal(prepared.videoMaterials![0].error, undefined);
+});

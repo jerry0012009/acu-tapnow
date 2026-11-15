@@ -159,7 +159,9 @@ export default defineBackground(() => {
     try {
       let draft = message.draft;
       if (draft.videoMaterials?.length && settings.llmIncludeImages) {
-        draft = await prepareVideoMaterials(draft, browser.runtime);
+        draft = await prepareVideoMaterials(draft, browser.runtime, {
+          baseUrl: settings.llmBaseUrl, apiKey, model: "gemini-3.8-flash"
+        });
       }
       if (new URL(settings.llmBaseUrl).hostname === "api.acucompute.com") {
         try {
@@ -192,11 +194,16 @@ export default defineBackground(() => {
       for (const video of draft.videoMaterials || []) {
         if (video.error) result.suggestions.push(`${video.materialId} 未读取：${video.error}`);
         if (video.omittedFrames) result.suggestions.push(`${video.materialId} 有 ${video.omittedFrames} 张采样帧因本地传输预算未发送。`);
+        if (video.audio?.status === "no_audio") result.suggestions.push(`${video.materialId} 没有音轨。`);
+        else if (!video.audio?.analyzed) result.suggestions.push(`${video.materialId} 音频未完整分析：${video.audio?.error || video.audio?.status || "未取得音频证据"}`);
       }
       if (draft.videoMaterials?.length) result.suggestions.push(settings.llmIncludeImages
-        ? "视频评价仅依据已发送的采样画面，未分析音频。"
+        ? "视频视觉评价仅依据已发送的采样画面；声音评价以各视频返回的音频证据为准，不包含精确口型或音画同步检测。"
         : "视频画面发送已关闭，本次没有进行视频视觉评价。");
-      return { ok: true, result };
+      return { ok: true, result, videoEvidence: (draft.videoMaterials || []).map(({ frames, observations, ...video }) => ({
+        ...video, frameCount: frames?.length || 0,
+        sampledTimestamps: (frames || []).map(frame => frame.timestamp)
+      })) };
     } catch (error) {
       return {
         ok: false,

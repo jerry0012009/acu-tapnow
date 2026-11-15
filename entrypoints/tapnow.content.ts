@@ -49,6 +49,9 @@ import {
 } from "../utils/limits";
 
 interface LlmResponse {
+  videoEvidence?: Array<{ materialId: string; url: string; frameCount: number;
+    sampledTimestamps: string[]; audio?: NonNullable<ReviewDraft["videoMaterials"]>[number]["audio"];
+    error?: string; omittedFrames?: number }>;
   ok: boolean;
   error?: string;
   diagnostics?: LlmRequestDiagnostics;
@@ -1102,6 +1105,8 @@ export default defineContentScript({
         }
         if (nodeElement) {
           for (const image of [...nodeElement.querySelectorAll("img")]) {
+            // Video-node thumbnails and reference strips are not video outputs.
+            if (nodeType === "video") continue;
             if (
               !visible(image) ||
               image.naturalWidth < 64 ||
@@ -1399,7 +1404,7 @@ export default defineContentScript({
             ? `${captureErrors.length ? captureErrors.join(" ") + " " : ""}图片仅在本地完成预检；点击“检测”才会按总请求预算发送。${payloadStats.omittedCount ? ` 有 ${payloadStats.omittedCount} 项因预算未发送。` : ""}`
             : "正在本地准备图片；此过程不会调用 LLM。"
           : "点击“检测”才会调用 LLM；当前未开启图片发送，只传图片元数据。";
-        const videoNotice = draft.videoMaterials?.length ? `视频 ${draft.videoMaterials.length} 项 · ${state.settings.llmIncludeImages ? "检测时读取采样画面，音频未分析" : "画面发送已关闭"}` : "";
+        const videoNotice = draft.videoMaterials?.length ? `视频 ${draft.videoMaterials.length} 项 · ${state.settings.llmIncludeImages ? "采样画面与音轨" : "画面发送已关闭"}` : "";
         const debugInfo = {
           canvasId: draft.canvasId || null,
           nodeId: draft.nodeId || null,
@@ -1418,7 +1423,7 @@ export default defineContentScript({
           outgoingConnections: draft.outgoingConnections || [],
           referenceBindings: draft.referenceBindings || [],
           snapshot: draft.snapshot || null,
-          videos: (draft.videoMaterials || []).map(({frames, ...video}) => ({ ...video, frameCount: frames?.length || 0 })),
+          videos: (draft.videoMaterials || []).map(({frames, ...video}) => ({ ...video, frameCount: frames?.length || video.preparedFrameCount || 0 })),
           images: (draft.imageMaterials || []).map((image) => ({
             materialId: image.materialId || null,
             url: image.url,
@@ -1537,7 +1542,7 @@ export default defineContentScript({
         draft: ReviewDraft,
         clientRequestId: string
       ): Promise<LlmResponse> {
-        const timeoutMs = LLM_REQUEST_TIMEOUT_MS + (draft.videoMaterials?.length ? 145_000 : 53_000);
+        const timeoutMs = LLM_REQUEST_TIMEOUT_MS + (draft.videoMaterials?.length ? 235_000 : 53_000);
         let timer: ReturnType<typeof setTimeout> | undefined;
         try {
           return await Promise.race([
@@ -1699,6 +1704,14 @@ export default defineContentScript({
         state.pendingTimer = setInterval(refreshPendingState, 1_000);
         try {
           const response = await sendLlmReview(draft, clientRequestId);
+          if (Array.isArray(response?.videoEvidence)) {
+            for (const video of draft.videoMaterials || []) {
+              const evidence = response.videoEvidence.find((item: any) => item.materialId === video.materialId && item.url === video.url);
+              if (evidence) Object.assign(video, { audio: evidence.audio, error: evidence.error,
+                omittedFrames: evidence.omittedFrames, preparedFrameCount: evidence.frameCount,
+                sampledTimestamps: evidence.sampledTimestamps });
+            }
+          }
           const current = await getDraft(false);
           if (current.nodeId !== draft.nodeId || current.canvasId !== draft.canvasId ||
               current.prompt !== draft.prompt || JSON.stringify(current.referenceBindings) !== JSON.stringify(draft.referenceBindings) ||
