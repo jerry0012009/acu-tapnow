@@ -12,15 +12,15 @@ export function bindRuntimePopup(
   const connect = async () => {
     if (busy) return;
     busy = true; button.disabled = true;
-    status.textContent = "正在连接 ACU Runtime";
+    status.textContent = "正在连接…";
     try {
       await navigator.locks.request("acu-runtime-connection", () => connectRuntime(edition, runtime, storage));
       await onConnected();
       status.textContent = edition === "companion"
-        ? "API Key 与模型已配置，Runtime 已确认；刷新已打开的画布后生效。"
-        : "备份插件已连接；不使用 API Key。";
+        ? "已连接。刷新 TapNow 画布后开始检测。"
+        : "已连接。打开画布后点击“备份当前画布”。";
     } catch {
-      status.textContent = "尚未确认连接。请先在 Runtime 点击一键配置，再点击这里重试；无需复制 Key。";
+      status.textContent = "请在 ACU Runtime 点击“一键配置”，然后在这里重试。";
     } finally {
       busy = false; button.disabled = false;
     }

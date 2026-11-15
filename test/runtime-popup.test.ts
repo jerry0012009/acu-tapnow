@@ -24,11 +24,11 @@ test("popup connects locally without tabs or URL navigation, retries, and never 
       {get:async()=>({...data}),set:async value=>{Object.assign(data,value);}},async()=>{saved++;});
     const settle=()=>new Promise(resolve=>setImmediate(resolve));
     await settle();
-    assert.match(status.textContent,/尚未确认连接/);assert.equal(button.disabled,false);assert.equal(saved,0);
+    assert.match(status.textContent,/一键配置/);assert.equal(button.disabled,false);assert.equal(saved,0);
     available=true;events.click();events.click();
     await settle();
     assert.equal(claims,1,"ignore double clicks while native save is running");
-    assert.equal(saved,1);assert.match(status.textContent,/Runtime 已确认/);assert.equal(button.disabled,false);
+    assert.equal(saved,1);assert.match(status.textContent,/已连接/);assert.equal(button.disabled,false);
     assert.equal(Object.keys(events).length,1,"only a local click handler, no navigation hooks");
   } finally {
     if (old) Object.defineProperty(globalThis,"navigator",old); else Reflect.deleteProperty(globalThis,"navigator");

@@ -9,17 +9,16 @@ let busy = false;
 async function connect() {
   if (busy) return;
   busy = true; retry.disabled = true;
-  status.textContent = "正在连接 ACU Runtime";
+  status.textContent = "正在连接…";
   try {
     await navigator.locks.request("acu-runtime-connection", () => connectRuntime(__TAPNOW_EDITION__, browser.runtime, browser.storage.local));
     status.textContent = __TAPNOW_EDITION__ === "backup"
-      ? "资产备份已就绪。请在 Chrome 中打开并登录自己的 TapNow 画布。"
-      : "ACU 模型与 Key 已配置。请在 Chrome 中打开自己的 TapNow 画布，节点检测可能产生费用。";
+      ? "设置完成。打开 TapNow 画布后，点击插件中的“备份当前画布”。"
+      : "设置完成。打开 TapNow 画布，刷新后开始检测节点。";
     retry.hidden = true;
     document.querySelector<HTMLAnchorElement>("#open-tapnow")!.hidden = false;
-  } catch (error) {
-    status.textContent = error instanceof Error && !/native|host|messaging/i.test(error.message)
-      ? error.message : "ACU Runtime 连接组件暂不可用，请在 Runtime 重新点击接入。";
+  } catch {
+    status.textContent = "请在 ACU Runtime 点击“一键配置”，然后点击下方“重新连接”。";
   } finally { busy = false; retry.disabled = false; }
 }
 retry.addEventListener("click", connect);

@@ -1,6 +1,7 @@
 # TapNow ZIP Distribution And Runtime Setup
 
-TapNow 0.1.25 adds native connection directly inside both Chrome action popups,
+TapNow 0.1.26 simplifies connection screens to a current action and a short result.
+It retains native connection directly inside both Chrome action popups,
 without externally navigating to chrome-extension pages. It retains official
 login-source endpoint compatibility, including
 `console.acucompute.com`, for the Runtime installation flow. Based on upstream `f3df6c6`
