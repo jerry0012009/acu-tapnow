@@ -2,16 +2,16 @@
   "schema": 1,
   "packages": {
     "companion": {
-      "version": "0.1.24",
-      "url": "https://github.com/jerry0012009/acu-tapnow/releases/download/v0.1.24/tapnow-companion-0.1.24-chrome.zip",
-      "sha256": "84134ffdd6364d4bb3c8b9d8a1620a40a126af6bf05f262cdb64c9cdd4bb986a",
-      "size": 45160
+      "version": "0.1.25",
+      "url": "https://github.com/jerry0012009/acu-tapnow/releases/download/v0.1.25/tapnow-companion-0.1.25-chrome.zip",
+      "sha256": "6fdaf136fd757dc6a6016cb9b65f7b281d986f80349c8e564fc6ab2074008783",
+      "size": 45361
     },
     "backup": {
-      "version": "0.1.24",
-      "url": "https://github.com/jerry0012009/acu-tapnow/releases/download/v0.1.24/tapnow-backup-0.1.24-chrome.zip",
-      "sha256": "103c1eef41635cfcc462d3a7215e23775929df25956c9b729f9f3cb0c3c7fab8",
-      "size": 189047
+      "version": "0.1.25",
+      "url": "https://github.com/jerry0012009/acu-tapnow/releases/download/v0.1.25/tapnow-backup-0.1.25-chrome.zip",
+      "sha256": "e1e39cd3f4e92af4ff3fecb9062f9bd0efd6f22d731653a7f27ad70059ed3cee",
+      "size": 189901
     }
   }
 }
