@@ -33,3 +33,13 @@ with status retained in developer JSON. No paid calls or real user data.
 against f5372e7 has the same seven existing diagnostics, zero additions.
 Release must pass the tagged workflow, public ZIP digest/identity verification
 and Runtime's public channel/native-message checks before activation is complete.
+
+## Publication
+
+Published source: `a3956f0`, tag `v0.1.32`.
+Workflow https://github.com/jerry0012009/acu-tapnow/actions/runs/43739076535
+passed all gates. Downloaded both public ZIPs, verified catalog SHA-256/size,
+stable extension identity and every file against reviewed build output.
+The main Runtime channel uses the downloaded release catalog, not rebuilt ZIPs.
+No backend restart or paid inference was performed. Existing unpacked extensions
+require Chrome Reload and an existing TapNow page refresh after Runtime update.
