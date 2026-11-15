@@ -32,7 +32,7 @@ export async function prepareVideoMaterials(draft: ReviewDraft, runtime: NativeV
           !["files.tapnow.media", "files.tapnow.top"].includes(source.hostname)) throw new Error("视频来源不在 TapNow 素材域名内");
       let timer: ReturnType<typeof setTimeout> | undefined;
       const reply = await Promise.race([
-        runtime.sendNativeMessage("com.acucompute.tapnow", {
+        runtime.sendNativeMessage("com.acucompute.video", {
           action: "video-frames", version: runtime.getManifest().version, url: source.toString()
         }),
         new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("视频读取超时，请重试")), Math.max(1, deadline - Date.now())); })

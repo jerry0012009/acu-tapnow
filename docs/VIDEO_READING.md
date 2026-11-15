@@ -1,36 +1,22 @@
-# Video reading candidate
+# External MCP video reading
 
-Companion reuses Magpie's pinned `claude-video-vision@1.4.0` MCP through the
-existing native host. Runtime authorizes and forwards requests only; Magpie owns
-preparation, media download, temporary files, decoding and MCP processes.
-No second video parser, inference provider or video
-generation integration is added. Backup remains independent and cannot read
-video through the native host.
+Companion 0.1.25 calls the independently packaged `acu-video-mcp` 0.1.0 native
+host `com.acucompute.video`. Runtime prepares this verified external tool during
+one-click setup and assigns it through official Magpie's standard Library API.
+There is no kernel patch, private video API, Runtime decoder or npm bootstrap.
 
-During an explicit node review, the existing image-send setting also controls
-video-frame sending. References and existing video output are collected separately
-from still images. Runtime returns bounded visual samples and timestamps; the
-existing Responses/Chat review sends them as normal image content with stable
-video/node/role labels. No video processing runs merely by opening a canvas.
+The self-contained tool bundles upstream claude-video-vision and dependencies.
+It owns media download, temporary files, decoding and process cleanup. Native
+requests carry only the URL/action/version, no ACU Key or TapNow credentials.
+The video host admits Companion only; Backup remains separate.
 
-Limits: three videos per review, 100 MiB and 30 minutes per video, approximately
-12 samples at 640px, native result below 1 MiB. Audio is not analyzed. Failure,
-omission and image-budget exclusion are not successful inspection. Existing
-output is not assumed to correspond to the current edited generation prompt.
-Changing video identity invalidates late advice. Suggestions remain read-only.
+Explicit detection reads at most three videos, 100 MiB/30 minutes each, with
+approximately 12 visual samples. The existing image-send setting controls frame
+sending. Source node/video/time labels go into normal image review; omitted and
+failed evidence is disclosed. Audio is not analyzed. Existing output is unbound
+to edited prompts unless generation provenance is available. Advice is read-only.
 
-Requires the matching candidate Magpie kernel, running Runtime and Companion. Older Runtime reports
-an explicit native-tool error, not a successful visual review. This branch does
-not activate a public ZIP catalog or publish a release.
-
-Native messages remain small URL requests; the host forwards them through the
-authenticated Runtime connection to `/api/library/video/frames`. The result is
-returned without a separate Runtime decoder or MCP process. Dependency setup is
-`/api/library/video/prepare` in Magpie, including when Companion is configured.
-The five-minute Key-configuration grant is not reused to claim or rewrite a Key
-for video requests. The configured Runtime instance must still be running.
-
-Validation: unit tests, both extension builds, and isolated Chromium/native
-host roundtrip. No authorized live-canvas or paid model-quality acceptance was
-performed. The repository's full strict TypeScript baseline is not clean;
-existing diagnostics are not claimed fixed by this change.
+Unchanged official Magpie can upgrade independently. Once the external native
+host is registered, video reading does not require Runtime's window to remain
+open. First Chrome unpacked-extension loading and update reload remain manual
+browser confirmations. No generation or paid inference runs during connection.

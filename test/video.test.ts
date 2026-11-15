@@ -15,7 +15,7 @@ test("MOV recognition ignores signed query and accepts video node without suffix
 test("native frames preserve source identity and timestamps in both protocols", async () => {
   const input = draft();
   const prepared = await prepareVideoMaterials(input, { getManifest: () => ({ version: "0.1.23" }), sendNativeMessage: async (host, message: any) => {
-    assert.equal(host, "com.acucompute.tapnow");
+    assert.equal(host, "com.acucompute.video");
     assert.equal(message.action, "video-frames");
     assert.equal(message.url, input.videoMaterials![0]!.url);
     assert(!("apiKey" in message));
