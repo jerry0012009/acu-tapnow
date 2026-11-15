@@ -24,7 +24,7 @@ test("popup connects locally without tabs or URL navigation, retries, and never 
       {get:async()=>({...data}),set:async value=>{Object.assign(data,value);}},async()=>{saved++;});
     const settle=()=>new Promise(resolve=>setImmediate(resolve));
     await settle();
-    assert.match(status.textContent,/一键配置/);assert.equal(button.disabled,false);assert.equal(saved,0);
+    assert.match(status.textContent,/no grant/);assert.match(status.textContent,/副驾驶/);assert.match(status.textContent,/重新连接/);assert.equal(button.disabled,false);assert.equal(saved,0);
     available=true;events.click();events.click();
     await settle();
     assert.equal(claims,1,"ignore double clicks while native save is running");
@@ -33,4 +33,19 @@ test("popup connects locally without tabs or URL navigation, retries, and never 
   } finally {
     if (old) Object.defineProperty(globalThis,"navigator",old); else Reflect.deleteProperty(globalThis,"navigator");
   }
+});
+
+test("saved companion remains usable when Runtime authorization expires without claiming connection", async () => {
+  const old = Object.getOwnPropertyDescriptor(globalThis,"navigator");
+  Object.defineProperty(globalThis,"navigator",{configurable:true,value:{locks:{request:async (_:string,fn:()=>unknown)=>fn()}}});
+  try {
+    const data = {apiKey:"fixture-key",runtimeConnection:{settings:{llmBaseUrl:"https://acu.best/v1",llmProtocol:"responses",llmModel:"gpt-6.1-sol"}}};
+    let connected = 0;
+    const status = {textContent:""};
+    bindRuntimePopup({disabled:false,addEventListener:()=>{}} as any,status as any,"companion",
+      {getManifest:()=>({version:"0.1.30"}),sendNativeMessage:async()=>{throw Error("本机授权已过期");}},
+      {get:async()=>data,set:async()=>{throw Error("must not rewrite saved credentials");}},async()=>{connected++;});
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(connected,1);assert.match(status.textContent,/本机配置已保存/);assert(!status.textContent.startsWith("已连接"));
+  } finally {if(old)Object.defineProperty(globalThis,"navigator",old);else Reflect.deleteProperty(globalThis,"navigator");}
 });

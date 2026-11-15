@@ -25,7 +25,8 @@ export async function connectRuntime(edition: "backup" | "companion", runtime: N
       return;
     }
   }
-  const reply = await runtime.sendNativeMessage(HOST, { action: "connect", version });
+  const reply = await runtime.sendNativeMessage(HOST, { action: "connect", version,
+    ...(savedReceipt?.version === version && typeof savedReceipt.grant === "string" ? { grant: savedReceipt.grant } : {}) });
   if (reply?.ok && reply.confirmed === true) {
     if (edition === "companion") {
       const current = await storage.get(["apiKey", "runtimeConnection"]);

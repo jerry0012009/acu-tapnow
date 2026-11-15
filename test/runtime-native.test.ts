@@ -56,3 +56,16 @@ test("Chrome storage may reorder JSON keys without changing the saved configurat
   local.get=async()=>{const value=await get();if(value.runtimeConnection){const s=value.runtimeConnection.settings;value.runtimeConnection={...value.runtimeConnection,settings:{llmModel:s.llmModel,llmProtocol:s.llmProtocol,llmBaseUrl:s.llmBaseUrl}}}return value};
   await connectRuntime("companion",{getManifest:()=>({version:"0.1.23"}),sendNativeMessage:async(_host,msg:any)=>msg.action==="connect"?{ok:true,grant,config:config()}:{ok:msg.success}},local);
 });
+
+test("lost acknowledgement resumes the original grant when Runtime still has a saving connection",async()=>{
+ const local=storage();local.data.runtimePendingReceipt={grant,version:"0.1.30"};local.data.apiKey=config().apiKey;
+ local.data.runtimeConnection={settings:config().settings};const messages:any[]=[];
+ await connectRuntime("companion",{getManifest:()=>({version:"0.1.30"}),sendNativeMessage:async(_,msg:any)=>{
+  messages.push(msg);
+  if(messages.length===1)return {ok:false,error:"receipt not confirmed"};
+  if(msg.action==="connect"){assert.equal(msg.grant,grant);return {ok:true,grant,config:config()};}
+  return {ok:true};
+ }},local);
+ assert.deepEqual(messages.map(msg=>msg.action),["ack","connect","ack"]);
+ assert.equal(local.data.runtimePendingReceipt,null);
+});

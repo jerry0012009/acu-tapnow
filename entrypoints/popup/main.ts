@@ -67,7 +67,7 @@ app.innerHTML = `
     <input id="llmBaseUrl" type="text" placeholder="https://api.acucompute.com/v1">
     <label for="apiKey">API Key</label>
     <input id="apiKey" type="password" placeholder="留空表示不修改已保存的 Key">
-    <div class="hint">点击检测会向配置的 API 发送当前节点文字、图片与视频采样画面，可能产生费用。视频音频不分析。Key 不会同步到 Chrome 账号。</div>
+    <div class="hint">检测使用当前 ACU Key，视频可包含画面与音频分析，可能产生费用。Key 不会同步到 Chrome 账号。</div>
   </div>
   <button id="save" type="button">保存设置</button>
   <div id="status" role="status"></div>
