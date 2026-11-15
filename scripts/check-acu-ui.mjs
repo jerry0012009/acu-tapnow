@@ -11,7 +11,7 @@ const canvasId = "00000000-0000-4000-8000-000000000001";
 const version = JSON.parse(await fs.readFile("package.json", "utf8")).version;
 try {
   for (const edition of ["companion", "backup"]) {
-    const context = await browser.newContext({ viewport: { width: 380, height: 600 } });
+    const context = await browser.newContext({ viewport: { width: edition === "companion" ? 560 : 380, height: 580 } });
     await context.addInitScript(({ edition, canvasId, version }) => {
       const sync = { enabled: true, llmEnabled: true, llmIncludeImages: true };
       const local = { companionTrialDefaultsVersion: 1 };
@@ -60,6 +60,34 @@ try {
     assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor), "rgb(17, 18, 20)");
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     if (edition === "companion") {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      assert.equal(await page.locator("body").evaluate(node => node.getBoundingClientRect().width), 560, "Chrome action popup has an intrinsic usable width independent of the initial viewport");
+      await page.setViewportSize({ width: 560, height: 580 });
+      await page.getByRole("tab", { name: "API 配置", exact: true }).click();
+      for (const label of ["接口协议", "模型", "API Base URL", "API Key"]) {
+        const input = page.getByLabel(label, { exact: true });
+        const box = await input.boundingBox();
+        const footer = await page.locator(".popup-footer").boundingBox();
+        assert(box && box.y > 0 && box.y + box.height <= footer.y, `${label} fully visible above save`);
+      }
+      await page.getByLabel("API Base URL", { exact: true }).fill("https://console.acucompute.com/v1");
+      await page.getByLabel("API Key", { exact: true }).fill("fixture-popup-key");
+      await page.getByRole("button", { name: "保存设置", exact: true }).click();
+      await page.getByText("已保存。刷新 TapNow 页面后生效。", { exact: true }).waitFor();
+      assert.equal(await page.evaluate(() => globalThis.uiFixture.local.apiKey), "fixture-popup-key");
+      await page.getByLabel("API Key", { exact: true }).fill("");
+      await page.screenshot({ path: path.join(output, "companion-api-popup.png") });
+      const settingsPage = await context.newPage();
+      await settingsPage.goto("https://acu-ui.test/popup.html?view=settings#api");
+      assert.equal(await settingsPage.getByRole("tab", { name: "API 配置" }).getAttribute("aria-selected"), "true");
+      for (const width of [1280, 390]) {
+        await settingsPage.setViewportSize({ width, height: 800 });
+        assert(await settingsPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+        await settingsPage.getByLabel("API Key", { exact: true }).fill("fixture-settings-page");
+        await settingsPage.screenshot({ path: path.join(output, `settings-page-${width}.png`), fullPage: true });
+      }
+      await settingsPage.close();
+      await page.getByRole("tab", { name: "常用设置", exact: true }).click();
       assert.equal(await page.locator("#advanced-settings").getAttribute("open"), null);
       await page.getByLabel("模型审阅", { exact: true }).focus();
       await page.keyboard.press("Space");
@@ -76,6 +104,7 @@ try {
       assert.equal(await page.locator("#save").isEnabled(), true);
       await page.evaluate(() => { globalThis.uiFixture.failSave = false; });
       await page.screenshot({ path: path.join(output, "companion-popup.png"), fullPage: true });
+      await page.getByRole("tab", { name: "API 配置", exact: true }).click();
       await page.getByText("模型与高级设置", { exact: true }).focus();
       await page.keyboard.press("Enter");
       assert.equal(await page.locator("#advanced-settings").getAttribute("open"), "");
@@ -87,6 +116,7 @@ try {
       const footer = await page.locator(".popup-footer").boundingBox();
       assert(footer.y + footer.height <= 601, "save action stays in popup viewport");
       await page.getByText("模型与高级设置", { exact: true }).click();
+      await page.getByRole("tab", { name: "常用设置", exact: true }).click();
     }
     await page.evaluate(() => { globalThis.uiFixture.native = "ready"; });
     await page.getByRole("button", { name: "连接 ACU Runtime", exact: true }).click();
@@ -154,13 +184,26 @@ try {
   }
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
   await context.addInitScript(() => {
-    const sync = { enabled: true, llmEnabled: false, llmIncludeImages: false };
-    const local = { companionTrialDefaultsVersion: 1 };
+    const sync = { enabled: true, llmEnabled: true, llmIncludeImages: false, llmBaseUrl: "https://acu.best/v1" };
+    const local = { companionTrialDefaultsVersion: 1, apiKey: "fixture-not-a-real-key" };
+    const listeners = [];
+    globalThis.recallFixture = "ready";
     globalThis.chrome = {
-      runtime: { id: "fixture", sendMessage: async () => ({ ok: false, error: "隔离页面不调用模型" }) },
+      runtime: { id: "fixture", onInstalled: { addListener() {} }, onMessage: { addListener: listener => listeners.push(listener) }, sendMessage: message => new Promise(resolve => {
+        for (const listener of listeners) if (listener(message, {}, resolve)) return;
+        resolve({ ok: false });
+      }) },
       storage: Object.fromEntries([["sync", sync], ["local", local]].map(([key, values]) => [key, {
         get: async defaults => ({ ...defaults, ...values }), set: async value => Object.assign(values, value), remove: async key => { delete values[key]; }
       }]))
+    };
+    const nativeFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+      if (!String(url).startsWith("https://acu.best/v1/")) return nativeFetch(url, options);
+      if (String(url).endsWith("/creative-assist")) return new Response(JSON.stringify(globalThis.recallFixture === "ready"
+        ? { status: "ready", supplement: "保留品牌辨识度", references: ["材质表现", "品牌辨识", "灯光经验", "构图偏好", "交付习惯", "第六条不展示"].map((name, index) => ({ id: String(index), name, quote: `真实来源原文 ${index + 1}`, application: `本次应用原因 ${index + 1}`, scope: "personal" })) }
+        : { status: "no_match", supplement: "", references: [] }), { headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ output_text: JSON.stringify({ decision: "allow", summary: "已结合当前输入审阅", issues: [], suggestions: [] }) }), { headers: { "Content-Type": "application/json" } });
     };
     localStorage.setItem("access_token", "fixture-only");
   });
@@ -175,6 +218,7 @@ try {
   const panelPage = await context.newPage();
   panelPage.on("pageerror", error => errors.push(error.message));
   await panelPage.goto(`https://app.tapnow.ai/canvas/${canvasId}`);
+  await panelPage.addScriptTag({ content: await fs.readFile(".output/companion/chrome-mv3/background.js", "utf8") });
   await panelPage.addScriptTag({ content: await fs.readFile(".output/companion/chrome-mv3/content-scripts/tapnow.js", "utf8") });
   const host = panelPage.locator("#tapnow-companion-host");
   await host.locator(".launcher").waitFor();
@@ -184,6 +228,11 @@ try {
   assert.equal(await host.locator(".panel").evaluate(node => getComputedStyle(node).backgroundColor), "rgb(17, 18, 20)");
   await host.locator(".detect").click();
   await panelPage.waitForFunction(() => !document.querySelector("#tapnow-companion-host").shadowRoot.querySelector(".detect").disabled);
+  await host.locator(".memory-evidence summary").waitFor();
+  assert.equal(await host.locator(".memory-evidence").getAttribute("open"), null);
+  await host.locator(".memory-evidence summary").click();
+  assert.deepEqual(await host.locator(".memory-evidence li strong").allTextContents(), ["材质表现", "品牌辨识", "灯光经验", "构图偏好", "交付习惯"]);
+  assert.equal(await host.getByText("第六条不展示", { exact: true }).count(), 0);
   for (const width of [1440, 920, 390]) {
     await panelPage.setViewportSize({ width, height: 960 });
     const box = await host.locator(".panel").boundingBox();
@@ -191,6 +240,12 @@ try {
     assert(await host.locator(".detect svg").isVisible());
     await panelPage.screenshot({ path: path.join(output, `companion-panel-${width}.png`) });
   }
+  await panelPage.evaluate(() => { globalThis.recallFixture = "no_match"; });
+  await host.locator(".detect").click();
+  await panelPage.waitForFunction(() => !document.querySelector("#tapnow-companion-host").shadowRoot.querySelector(".detect").disabled);
+  assert.equal(await host.locator(".memory-evidence").count(), 0, "no-match recall stays out of normal UI");
+  const recallDebug = JSON.parse(await host.locator(".debug pre").textContent());
+  assert.equal(recallDebug.creativeMemory.status, "no_match", JSON.stringify(recallDebug));
   await host.getByRole("button", { name: "关闭", exact: true }).first().click();
   assert.equal(await host.locator(".panel").isVisible(), false);
   await context.close();

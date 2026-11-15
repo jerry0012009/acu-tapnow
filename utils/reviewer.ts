@@ -78,7 +78,7 @@ export interface ReviewDraft {
       warnings?: unknown[];
     };
   }>;
-  creativeMemory?: { status: string; supplement: string; references: Array<{ id: string; name: string; quote: string }> };
+  creativeMemory?: import("./creative-memory").CreativeMemory;
   canvasId?: string | null;
   nodeId?: string | null;
   nodeType?: string | null;

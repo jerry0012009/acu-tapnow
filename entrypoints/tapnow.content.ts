@@ -2,6 +2,7 @@ import { browser } from "wxt/browser";
 import { createElement, GripVertical, RotateCcw, X, ScanLine, Sparkles } from "lucide";
 import acuTheme from "../viewer/acu-theme.css?inline";
 import panelStyle from "../utils/companion-panel.css?inline";
+import { parseCreativeMemory, creativeMemoryMarkup } from "../utils/creative-memory";
 import { companionRoute } from "../utils/tapnow-route";
 import { isVideoMaterial, videoDraftIdentity } from "../utils/video";
 import { loadCompanionSettings } from "../utils/companion-settings";
@@ -51,6 +52,7 @@ import {
 } from "../utils/limits";
 
 interface LlmResponse {
+  creativeMemory?: ReviewDraft["creativeMemory"];
   videoEvidence?: Array<{ materialId: string; url: string; frameCount: number;
     sampledTimestamps: string[]; audio?: NonNullable<ReviewDraft["videoMaterials"]>[number]["audio"];
     error?: string; omittedFrames?: number }>;
@@ -1374,6 +1376,7 @@ export default defineContentScript({
           : "点击“检测”才会调用 LLM；当前未开启图片发送，只传图片元数据。";
         const videoNotice = draft.videoMaterials?.length ? `视频 ${draft.videoMaterials.length} 项 · ${state.settings.llmIncludeImages ? "采样画面与音轨" : "画面发送已关闭"}` : "";
         const debugInfo = {
+          creativeMemory: draft.creativeMemory || { status: "not_requested", references: [] },
           canvasId: draft.canvasId || null,
           nodeId: draft.nodeId || null,
           nodeType: draft.nodeType || null,
@@ -1496,6 +1499,7 @@ export default defineContentScript({
           <div class="label">检查结果</div>
           ${issueHtml}
           ${llmHtml}
+          ${creativeMemoryMarkup(draft.creativeMemory)}
           ${suggestionsHtml}
           <div class="notice">${imageNotice}</div>
           <details class="debug">
@@ -1672,6 +1676,7 @@ export default defineContentScript({
         state.pendingTimer = setInterval(refreshPendingState, 1_000);
         try {
           const response = await sendLlmReview(draft, clientRequestId);
+          if (response?.creativeMemory) draft.creativeMemory = parseCreativeMemory(response.creativeMemory);
           if (Array.isArray(response?.videoEvidence)) {
             for (const video of draft.videoMaterials || []) {
               const evidence = response.videoEvidence.find((item: any) => item.materialId === video.materialId && item.url === video.url);

@@ -1,7 +1,10 @@
-body { width: 380px; max-width: 100vw; max-height: 600px; display: flex; flex-direction: column; }
-#app { display: flex; flex-direction: column; max-height: 600px; }
+html { width: 380px; }
+body { width: 380px; max-height: 580px; display: flex; flex-direction: column; }
+#app { display: flex; flex-direction: column; height: 580px; min-height: 0; }
+html.companion-popup, .companion-popup body { width: 560px; }
+.companion-popup body { height: 580px; overflow: hidden; }
 .popup-header { display: flex; align-items: center; gap: 12px; padding: 20px; border-bottom: 1px solid var(--acu-line); }
-.popup-content { padding: 0 20px; overflow-y: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--acu-line) transparent; }
+.popup-content { flex: 1; padding: 0 20px; overflow-y: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--acu-line) transparent; }
 .popup-header,.popup-footer { flex-shrink: 0; }
 .popup-section { padding: 20px 0; border-bottom: 1px solid var(--acu-line); }
 .popup-section:last-child { border-bottom: 0; }
@@ -46,3 +49,16 @@ input[type="file"]::file-selector-button { background: var(--acu-raised); border
 .backup-actions button .action-arrow { margin-left: auto; width: 15px; height: 15px; }
 .privacy-line { display: flex; align-items: center; gap: 7px; color: var(--acu-muted); font-size: 11px; margin: 15px 0 0; }
 .privacy-line svg { width: 13px; height: 13px; }
+.settings-tabs { display: flex; gap: 18px; padding: 0 20px; border-bottom: 1px solid var(--acu-line); flex-shrink: 0; }
+.settings-tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--acu-muted); min-height: 42px; padding: 10px 2px; }
+.settings-tabs button[aria-selected="true"] { border-color: var(--acu-accent); color: var(--acu-accent); }
+#open-settings { display: grid; place-items: center; color: var(--acu-muted); border: 1px solid var(--acu-line); border-radius: 6px; flex-shrink: 0; }
+.api-fields .field-label { margin-top: 10px; }
+.api-fields input,.api-fields select { padding: 8px 10px; }
+html.settings-page { width: auto; }
+.settings-page body { width: auto; max-width: 880px; max-height: none; margin: 0 auto; }
+.settings-page #app { height: auto; min-height: 100dvh; }
+.settings-page .popup-content { overflow: visible; padding: 0 28px; }
+.settings-page .popup-footer { bottom: 0; }
+.settings-page #open-settings { display: none; }
+.settings-page #llmPrompt { min-height: 180px; }

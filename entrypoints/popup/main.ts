@@ -2,7 +2,7 @@ import { browser } from "wxt/browser";
 import { loadCompanionSettings } from "../../utils/companion-settings";
 import { parseRuntimeConfig, type RuntimeConfig } from "../../utils/runtime-config";
 import { bindRuntimePopup } from "../../utils/runtime-popup";
-import { createIcons, SlidersHorizontal, ShieldCheck, Link2, Save } from "lucide";
+import { createIcons, SlidersHorizontal, ShieldCheck, Link2, Save, Maximize2 } from "lucide";
 import "../../viewer/acu-theme.css";
 import "../../utils/acu-popup.css";
 import {
@@ -16,9 +16,13 @@ import {
 } from "../../utils/limits";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
+const fullSettings = new URLSearchParams(location.search).get("view") === "settings";
+document.documentElement.classList.add(fullSettings ? "settings-page" : "companion-popup");
 app.innerHTML = `
-  <header class="popup-header"><div class="acu-brand"><span class="acu-mark" aria-hidden="true">A</span><div><span class="acu-wordmark">ACU <span class="acu-edition">TapNow · 副驾驶</span></span></div></div><span class="acu-version">v${browser.runtime.getManifest().version}</span></header>
+  <header class="popup-header"><div class="acu-brand"><span class="acu-mark" aria-hidden="true">A</span><div><span class="acu-wordmark">ACU <span class="acu-edition">TapNow · 副驾驶</span></span></div></div><span class="acu-version">v${browser.runtime.getManifest().version}</span><a id="open-settings" class="acu-icon-button" href="${browser.runtime.getURL("/popup.html")}?view=settings#api" target="_blank" rel="noopener" title="打开完整设置页" aria-label="打开完整设置页"><i data-lucide="maximize-2" aria-hidden="true"></i></a></header>
+  <nav class="settings-tabs" role="tablist" aria-label="副驾驶设置"><button id="tab-general" role="tab" aria-selected="true" aria-controls="settings-general" type="button">常用设置</button><button id="tab-api" role="tab" aria-selected="false" aria-controls="settings-api" tabindex="-1" type="button">API 配置</button></nav>
   <main class="popup-content">
+  <div id="settings-general" role="tabpanel" aria-labelledby="tab-general">
   <section class="popup-section" aria-label="审阅设置">
     <h1 class="section-heading"><i data-lucide="sliders-horizontal" aria-hidden="true"></i>审阅设置</h1>
     <label class="toggle-row" for="enabled"><span>启用副驾驶<small>画布内节点检测入口</small></span><input id="enabled" type="checkbox"></label>
@@ -36,10 +40,9 @@ app.innerHTML = `
     <textarea id="forbiddenTerms" placeholder="例如：未授权品牌"></textarea>
     <p class="hint">多个词用逗号或换行分隔。</p>
   </section>
-  <section class="popup-section"><details id="advanced-settings"><summary>模型与高级设置</summary>
-    <label class="field-label" for="llmPrompt">审阅提示词</label>
-    <textarea id="llmPrompt" maxlength="${MAX_LLM_PROMPT_LENGTH}" placeholder="用于指导模型审阅当前节点，只输出 JSON 结果。"></textarea>
-    <p class="hint">最多 ${MAX_LLM_PROMPT_LENGTH.toLocaleString()} 字符 · 节点文字预算 ${MAX_REVIEW_TEXT_CHARS.toLocaleString()} 字符 · 请求体 ${(MAX_REVIEW_REQUEST_BYTES / 1_000_000).toFixed(0)} MB。</p>
+  </div>
+  <div id="settings-api" role="tabpanel" aria-labelledby="tab-api" hidden>
+  <section class="popup-section api-fields"><h2 class="section-heading">API 配置</h2>
     <label class="field-label" for="llmProtocol">接口协议</label>
     <select id="llmProtocol"><option value="responses">Responses</option><option value="chat_completions">Chat Completions</option></select>
     <label class="field-label" for="llmModel">模型</label>
@@ -49,18 +52,45 @@ app.innerHTML = `
     <label class="field-label" for="apiKey">API Key</label>
     <input id="apiKey" type="password" placeholder="留空表示不修改已保存的 Key" autocomplete="off">
     <p class="hint">Key 仅存于本机，不同步到 Chrome 账号。检测使用当前 ACU Key，图片、视频与音频分析可能产生费用。</p>
+  </section>
+  <section class="popup-section"><details id="advanced-settings"><summary>模型与高级设置</summary>
+    <label class="field-label" for="llmPrompt">审阅提示词</label>
+    <textarea id="llmPrompt" maxlength="${MAX_LLM_PROMPT_LENGTH}" placeholder="用于指导模型审阅当前节点，只输出 JSON 结果。"></textarea>
+    <p class="hint">最多 ${MAX_LLM_PROMPT_LENGTH.toLocaleString()} 字符 · 节点文字预算 ${MAX_REVIEW_TEXT_CHARS.toLocaleString()} 字符 · 请求体 ${(MAX_REVIEW_REQUEST_BYTES / 1_000_000).toFixed(0)} MB。</p>
     <details class="import-settings"><summary>手动导入配置</summary>
     <label class="field-label" for="runtime-config">ACU Runtime 接入配置</label>
     <input id="runtime-config" type="file" accept=".json,application/json">
     <p id="runtime-preview" class="acu-status" role="status"></p>
     <button id="runtime-import" type="button" disabled>确认替换模型与 Key</button>
     <div class="hint">Key 仅保存在本机。检测会发送节点文字与勾选的图片，可能产生费用；导入后请删除配置文件。</div>
-    </details></details></section>
+    </details></details></section></div>
     <p class="hint" style="margin-bottom:16px">检测会发送节点内容，并可能使用 ACU 余额。</p>
   </main>
   <footer class="popup-footer"><button id="save" class="primary" type="button"><i data-lucide="save" aria-hidden="true"></i>保存设置</button><div id="status" class="acu-status" role="status"></div></footer>
 `;
-createIcons({ icons: { SlidersHorizontal, ShieldCheck, Link2, Save } });
+createIcons({ icons: { SlidersHorizontal, ShieldCheck, Link2, Save, Maximize2 } });
+
+const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+function selectTab(tab: HTMLButtonElement) {
+  for (const item of tabs) {
+    const active = item === tab;
+    item.setAttribute("aria-selected", String(active));
+    item.tabIndex = active ? 0 : -1;
+    document.getElementById(item.getAttribute("aria-controls")!)!.hidden = !active;
+  }
+  document.querySelector(".popup-content")!.scrollTop = 0;
+}
+for (const tab of tabs) {
+  tab.addEventListener("click", () => selectTab(tab));
+  tab.addEventListener("keydown", event => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === "Home" ? tabs[0] : event.key === "End" ? tabs[tabs.length - 1] : tabs[(tabs.indexOf(tab) + 1) % tabs.length];
+    selectTab(next);
+    next.focus();
+  });
+}
+if (location.hash === "#api") selectTab(tabs[1]);
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 

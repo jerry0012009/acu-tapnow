@@ -30,3 +30,13 @@
 .footer { display: flex; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--acu-line); }
 button.action { flex: 1; min-height: 40px; }
 .notice { color: var(--acu-muted); font-size: 11px; margin-top: 12px; line-height: 1.7; }
+.memory-evidence { border-block: 1px solid var(--acu-line); margin-top: 20px; padding: 14px 0; }
+.memory-evidence summary { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--acu-accent); }
+.memory-evidence summary span { color: var(--acu-muted); font-size: 11px; }
+.memory-evidence ol { margin: 16px 0 0; padding-left: 22px; }
+.memory-evidence li { padding: 0 0 14px 4px; font-size: 12px; overflow-wrap: anywhere; }
+.memory-evidence li::marker { color: var(--acu-accent); }
+.memory-evidence strong { font-weight: 600; }
+.memory-evidence small { display: block; color: var(--acu-muted); margin-top: 4px; }
+.memory-evidence blockquote { color: var(--acu-secondary); margin: 8px 0; padding-left: 10px; border-left: 2px solid var(--acu-line); white-space: pre-wrap; }
+.memory-evidence p { color: var(--acu-muted); margin: 8px 0 0; }

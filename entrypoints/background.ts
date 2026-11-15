@@ -5,6 +5,8 @@ import { LlmRequestError, reviewWithLlm } from "../utils/llm";
 import { MAX_SINGLE_IMAGE_BYTES } from "../utils/limits";
 import { messageListener } from "../utils/messages";
 import { prepareVideoMaterials } from "../utils/video";
+import { normalizeAcuEndpoint } from "../utils/acu-endpoint";
+import { parseCreativeMemory } from "../utils/creative-memory";
 
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
@@ -156,16 +158,18 @@ export default defineBackground(() => {
       return { ok: false, error: "LLM 审阅未启用。" };
     }
 
+    let draft = message.draft;
     try {
-      let draft = message.draft;
       if (draft.videoMaterials?.length && settings.llmIncludeImages) {
         draft = await prepareVideoMaterials(draft, browser.runtime, {
           baseUrl: settings.llmBaseUrl, apiKey, model: "gemini-3.5-flash-lite"
         });
       }
-      if (new URL(settings.llmBaseUrl).hostname === "api.acucompute.com") {
+      let memoryBase = "";
+      try { memoryBase = normalizeAcuEndpoint(settings.llmBaseUrl); } catch { /* Non-ACU providers do not have ACU memory. */ }
+      if (memoryBase) {
         try {
-          const response = await fetch(`${settings.llmBaseUrl.replace(/\/$/, "")}/private-acu/creative-assist`, {
+          const response = await fetch(`${memoryBase.replace(/\/$/, "")}/private-acu/creative-assist`, {
             method: "POST",
             headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
             signal: AbortSignal.timeout(48_000),
@@ -175,7 +179,7 @@ export default defineBackground(() => {
           });
           if (!response.ok) throw new Error("Creative memory unavailable");
           const memory = await response.json();
-          draft = { ...draft, creativeMemory: { status: memory.status, supplement: memory.supplement || "", references: memory.references || [] } };
+          draft = { ...draft, creativeMemory: parseCreativeMemory(memory) };
         } catch {
           draft = { ...draft, creativeMemory: { status: "unavailable", supplement: "", references: [] } };
         }
@@ -190,7 +194,6 @@ export default defineBackground(() => {
       }, {
         clientRequestId: String(message.clientRequestId || "")
       });
-      if (draft.creativeMemory?.status === "unavailable") result.suggestions.push("本次历史经验暂不可用，审阅仅依据当前素材。");
       for (const video of draft.videoMaterials || []) {
         if (video.error) result.suggestions.push(`${video.materialId} 未读取：${video.error}`);
         if (video.omittedFrames) result.suggestions.push(`${video.materialId} 有 ${video.omittedFrames} 张采样帧因本地传输预算未发送。`);
@@ -200,7 +203,7 @@ export default defineBackground(() => {
       if (draft.videoMaterials?.length) result.suggestions.push(settings.llmIncludeImages
         ? "视频视觉评价仅依据已发送的采样画面；声音评价以各视频返回的音频证据为准，不包含精确口型或音画同步检测。"
         : "视频画面发送已关闭，本次没有进行视频视觉评价。");
-      return { ok: true, result, videoEvidence: (draft.videoMaterials || []).map(({ frames, observations, ...video }) => ({
+      return { ok: true, result, creativeMemory: draft.creativeMemory, videoEvidence: (draft.videoMaterials || []).map(({ frames, observations, ...video }) => ({
         ...video, frameCount: frames?.length || 0,
         sampledTimestamps: (frames || []).map(frame => frame.timestamp)
       })) };
@@ -208,6 +211,7 @@ export default defineBackground(() => {
       return {
         ok: false,
         error: error instanceof Error ? error.message : String(error),
+        creativeMemory: draft.creativeMemory,
         diagnostics:
           error instanceof LlmRequestError ? error.diagnostics : undefined
       };
