@@ -1,6 +1,7 @@
 # TapNow ZIP Distribution And Runtime Setup
 
-TapNow 0.1.23 for ACU Runtime 0.1.80, based on reviewed upstream `f3df6c6`
+TapNow 0.1.24 fixes official login-source endpoint compatibility, including
+`console.acucompute.com`, for the Runtime installation flow. Based on upstream `f3df6c6`
 and native-connection source `b51fc5d`. Release assets are available only after
 the tagged plugin workflow completes successfully.
 Selected installation is ZIP extraction plus Chrome Load Unpacked. Chrome Web
@@ -30,7 +31,10 @@ authenticity: any local code can copy a public key. Trust verified release bytes
 and the local account, not ID alone. Existing old copies with other IDs must be
 disabled explicitly; storage does not migrate between IDs automatically.
 
-Supported ACU endpoints are `api.acucompute.com` and `acu.best`. Key/config live in
+Supported ACU endpoints use HTTPS under `acucompute.com` or `acu.best`, including
+official subdomains and existing `/acu/v1` API paths. Imported and inference URLs
+reject credentials, queries, fragments, nonstandard ports and lookalike domains.
+The exact selected provider origin is retained. Key/config live in
 local storage only; team settings stay user-owned. Native connection pages use a
 browser lock, single-use grant and idempotent receipt for retries. Managed popup
 settings remain editable; manual save exits managed-model mode.
