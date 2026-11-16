@@ -50,3 +50,15 @@ account, all remote assets, ordinary OS directory chooser or every TapNow data
 shape. No real user canvas was modified or downloaded, no model was invoked,
 and no production backend restart is needed. Public release/channel activation
 requires workflow success and downloaded ZIP verification.
+
+## Publication
+
+Source/tag `ec4807d` / `v0.1.33`. Workflow
+https://github.com/jerry0012009/acu-tapnow/actions/runs/43808096016 passed all
+gates including real MV3 backup. Public non-prerelease published at
+`2026-11-16T05:07:26Z`. Downloaded ZIP digests, sizes, fixed identities and every
+file match the reviewed build. Runtime main channel uses that published catalog.
+Companion: 56,727 bytes, SHA-256
+`6a31c2e84322e9e350e8fc0becb5f4da42593cacd77643187872bfeed0089c41`.
+Backup: 198,355 bytes, SHA-256
+`0935ba0a8d50a7393d901da57cd97db7c8c8fef01d5d7e11fb53e1c80d5ca981`.
