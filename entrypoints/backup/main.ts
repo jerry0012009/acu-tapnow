@@ -4,28 +4,31 @@ import { discoverAssetReferences } from "../../utils/backup/discover";
 import { downloadToDirectory, indexReferences, reconcileAssets, localFile, writeLocal, verifySaved, type LocalDirectory, type Result } from "../../utils/backup/engine";
 import { canvasIdFromUrl, sourceMatches } from "../../utils/backup/source";
 import { directoryHandle } from "../../utils/backup/handles";
-import { createIcons, FolderOpen, RefreshCw, ScanSearch, ExternalLink, Download, Pause } from "lucide";
+import { backupCanvasMetadata, backupPayloadPage } from "../../utils/backup/payload";
+import { createIcons, FolderOpen, RefreshCw, ScanSearch, ExternalLink, Download, Pause, HardDrive, ShieldCheck, Layers } from "lucide";
 import "../../viewer/acu-theme.css";
 import "./style.css";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
 <header class="acu-brandbar"><div class="acu-brand"><span class="acu-mark" aria-hidden="true">A</span><div><span class="acu-wordmark">ACU</span><span class="acu-edition">TapNow · 资产备份</span></div></div><span class="acu-version">本地工作空间</span></header>
-<div class="backup-heading"><div><h1>资产备份中心</h1><p>TapNow 画布与资源</p></div><button id="open-library"><i data-lucide="folder-open" aria-hidden="true"></i>查看本地备份</button></div>
+<div class="backup-heading"><div><p class="acu-eyebrow">TAPNOW BACKUP</p><h1>资产备份</h1><p>画布、原始素材与创作记录</p></div><button id="open-library"><i data-lucide="folder-open" aria-hidden="true"></i>本地资产库</button></div>
+<div class="backup-workspace">
 <section class="step"><div class="step-label"><span>01</span>备份画布</div>
 <div class="row"><select id="canvas" aria-label="选择备份画布"></select><button id="refresh-tabs" title="更新已打开的画布列表"><i data-lucide="refresh-cw"></i>更新列表</button></div>
-<h2 id="target-name">尚未选择画布</h2><div id="target-id"></div><p id="origin" class="muted"></p>
+<div class="canvas-identity"><i data-lucide="layers" aria-hidden="true"></i><div><h2 id="target-name">尚未选择画布</h2><div id="target-id"></div></div></div><p id="origin" class="muted"></p>
 <div class="row"><span id="connection">未连接</span><button id="source" disabled><i data-lucide="external-link"></i>查看原画布</button><button id="connect" disabled><i data-lucide="refresh-cw"></i>重新连接</button></div>
 <button id="scan" class="primary" disabled><i data-lucide="scan-search"></i>扫描此画布</button><p id="scan-summary" class="muted">尚未扫描</p></section>
-<section class="step"><div class="step-label"><span>02</span>保存位置</div>
+<section class="step"><div class="step-label"><span>02</span>保存位置</div><div class="destination-heading"><i data-lucide="hard-drive" aria-hidden="true"></i><h2>本机目录</h2></div>
 <div class="row"><button id="choose"><i data-lucide="folder-open"></i>选择备份目录</button><span id="directory">未选择</span></div>
 <p id="destination">未选择保存目录</p>
 <div class="row"><label>本轮新增上限 <input id="limit" type="number" value="20" min="0.1" step="0.1"> GiB</label><span class="muted">用户设定上限，非磁盘剩余空间</span></div>
-</section><section class="step"><div class="step-label"><span>03</span>执行备份</div>
-<div class="row"><button id="backup" class="primary" disabled><i data-lucide="download"></i>开始 / 增量补齐</button><button id="pause" disabled><i data-lucide="pause"></i>暂停</button></div>
+</section></div><section class="step execution"><div class="execution-heading"><div class="step-label"><span>03</span>执行备份</div><div class="row"><button id="backup" class="primary" disabled><i data-lucide="download"></i>开始备份 / 补齐</button><button id="pause" disabled><i data-lucide="pause"></i>暂停</button></div></div>
 <div class="metrics"><span>节点 / 连线<b id="graph">-</b></span><span>引用 / 唯一目标<b id="assets">-</b></span><span>已验证 / 待处理 / 失败<b id="counts">-</b></span><span>已写入<b id="bytes">0 GB</b></span></div>
-<progress id="progress" max="1" value="0"></progress><p id="status" role="status">正在读取来源画布...</p></section>`;
-createIcons({ icons: { FolderOpen, RefreshCw, ScanSearch, ExternalLink, Download, Pause } });
+<progress id="progress" aria-label="备份进度" max="1" value="0"></progress><p id="status" role="status">正在读取来源画布...</p>
+<div class="integrity-note"><i data-lucide="shield-check" aria-hidden="true"></i><span>SHA-256 校验 · 本地保存</span></div></section>
+<section class="asset-section" aria-label="素材清单"><div class="asset-heading"><h2>素材清单</h2><span id="asset-count">尚未扫描</span></div><div id="asset-list" class="asset-list"><p class="empty-assets">扫描后显示原始素材及下载结果</p></div></section>`;
+createIcons({ icons: { FolderOpen, RefreshCw, ScanSearch, ExternalLink, Download, Pause, HardDrive, ShieldCheck, Layers } });
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 let directory: LocalDirectory | null = null;
@@ -39,6 +42,28 @@ const query = new URLSearchParams(location.search);
 let controller: AbortController | null = null;
 const record = (v: unknown): Record<string, any> => v && typeof v === "object" && !Array.isArray(v) ? v as Record<string, any> : {};
 const setStatus = (v: string) => $("status").textContent = v;
+const runLabels: Record<string, string> = { running: "正在备份", paused: "已暂停", completed: "备份完成", partial: "部分素材未完成", "storage-budget-exceeded": "保存空间或本轮上限不足" };
+const assetLabels: Record<string, string> = { discovered: "待下载", queued: "待处理", verified: "已校验", retryable: "可重试", "unavailable-after-recovery": "来源不可用" };
+function renderAssets(assets: Result[]) {
+  $("asset-count").textContent = `${assets.length} 个资源目标`;
+  const list = $("asset-list");
+  list.replaceChildren();
+  if (!assets.length) { const empty = document.createElement("p"); empty.className = "empty-assets"; empty.textContent = "此画布没有可下载的素材，节点与连线仍可备份。"; list.append(empty); return; }
+  for (const asset of assets.slice(0, 100)) {
+    const row = document.createElement("div"); row.className = "asset-item";
+    const label = document.createElement("div"); label.className = "asset-name";
+    const title = document.createElement("strong");
+    let filename = asset.fileId || asset.assetId;
+    if (asset.url) { try { filename = decodeURIComponent(new URL(asset.url).pathname.split("/").pop() || filename); } catch { /* Keep the asset ID when a URL is malformed. */ } }
+    title.textContent = filename;
+    const location = document.createElement("small"); location.textContent = `${asset.nodeId || "画布"} · ${asset.fieldPath}`;
+    label.append(title, location);
+    if (asset.reason) { const reason = document.createElement("p"); reason.textContent = asset.reason; label.append(reason); }
+    const state = document.createElement("span"); state.className = "asset-state"; state.dataset.state = asset.status; state.textContent = assetLabels[asset.status] || asset.status;
+    row.append(label, state); list.append(row);
+  }
+  if (assets.length > 100) { const more = document.createElement("p"); more.className = "empty-assets"; more.textContent = `显示前 100 项；完整 ${assets.length} 项保存在备份清单中。`; list.append(more); }
+}
 $("open-library").onclick = async () => {
   try {
     const params = new URLSearchParams();
@@ -64,9 +89,12 @@ async function tabs() {
 function resetScan(message = "尚未扫描") {
   snapshot = null;
   for (const id of ["graph", "assets", "counts"]) $(id).textContent = "-";
-  $("bytes").textContent = "0 GB";
+  $("bytes").textContent = "0 B";
+  delete $("status").dataset.state;
   $<HTMLProgressElement>("progress").value = 0;
   $("scan-summary").textContent = message;
+  $("asset-count").textContent = "尚未扫描";
+  $("asset-list").replaceChildren();
   $<HTMLButtonElement>("backup").disabled = true;
 }
 function destination() {
@@ -78,7 +106,7 @@ function updateName(name: string) {
   $("target-name").textContent = name;
   document.title = `${name} · TapNow 备份中心`;
   const option = [...$<HTMLSelectElement>("canvas").options].find(o => o.value === String(target!.tabId));
-  if (option) option.textContent = `${name} · ${target.canvasId} · 标签页 ${target.tabId}`;
+  if (option) option.textContent = `${name} · 标签页 ${target.tabId}`;
 }
 async function checkSource(tabId: number, canvasId: string) {
   const tab = await browser.tabs.get(tabId);
@@ -92,6 +120,7 @@ async function ensureConnection() {
   if (!result?.ok) throw new Error(result?.error || "页面通信未建立");
   if (!snapshot && result.title) updateName(result.title.split(/\s[|｜]\s*/)[0]);
   $("connection").textContent = result.hasSession ? "已连接 · 页面有登录会话" : "已连接 · 请在原画布登录";
+  $("connection").dataset.state = result.hasSession ? "ready" : "waiting";
   if (!result.hasSession) throw new Error("页面通信已建立，但没有登录会话。请点击“查看原画布”登录。");
 }
 async function api(tabId: number, endpoint: string) {
@@ -131,7 +160,7 @@ async function refreshCanvasList(initial = false) {
   const available = await tabs();
   for (const tab of available) {
     const id = canvasIdFromUrl(tab.url)!;
-    select.append(new Option(`${tab.title || id} · ${id} · 标签页 ${tab.id}`, String(tab.id)));
+    select.append(new Option(`${tab.title || id} · 标签页 ${tab.id}`, String(tab.id)));
   }
   const wantedTab = initial ? Number(query.get("sourceTab")) : remembered?.tabId;
   const wantedId = initial ? query.get("canvasId") : remembered?.canvasId;
@@ -143,7 +172,7 @@ async function refreshCanvasList(initial = false) {
     await selectTarget(0);
     setStatus(wantedId ? "原来源标签页已关闭或切换，未自动选择其他画布。" : available.length ? "请从列表明确选择要备份的画布。" : "没有打开的具体画布。请在 TapNow 项目列表中打开一张画布，再点击它的“备份此画布”。");
   }
-  $("origin").textContent = initial && query.get("canvasId") ? "来源：你点击“备份此画布”的标签页" : query.get("from") === "projects" ? "来源：项目列表；仅备份上方选中的单画布" : "范围：上方选中的单画布";
+  $("origin").textContent = initial && query.get("canvasId") ? "来源：你点击“备份此画布”的标签页" : query.get("from") === "projects" ? "来源：画布工作区；仅备份上方选中的单画布" : "范围：上方选中的单画布";
 }
 async function connect() {
   await ensureConnection();
@@ -160,22 +189,24 @@ async function scan() {
   const base = `/api/canvas/v1/canvases/${encodeURIComponent(id)}`;
   const page = async (kind: "nodes" | "connections") => collectPages(async cursor => {
     const q = new URLSearchParams({ limit: "500" }); if (kind === "nodes") q.set("include_relations", "true"); if (cursor) q.set("cursor", cursor);
-    const data = record(record(await api(tabId, `${base}/${kind}?${q}`)).data);
-    if (!Array.isArray(data[kind])) throw new Error(`${kind} 列表缺失`);
-    return { items: data[kind], hasMore: Boolean(data.has_more), nextCursor: data.next_cursor || null, total: typeof data.total === "number" ? data.total : null };
+    return backupPayloadPage(await api(tabId, `${base}/${kind}?${q}`), kind);
   }, item => String(record(item).id));
   const canvasPayload = await api(tabId, `${base}?with_nodes=true&with_connections=true`);
+  const canvas = backupCanvasMetadata(canvasPayload, id);
   const nodes = await page("nodes"), connections = await page("connections");
   if (!nodes.diagnostic.complete || !connections.diagnostic.complete) throw new Error("分页不完整，未进入下载");
   await checkSource(tabId, id);
   if (scanInvalidated || version !== generation) throw new Error("扫描期间来源已改变，请重新扫描。");
   const refs = nodes.items.flatMap(node => discoverAssetReferences(id, String(record(node).id), record(node).data));
+  const { nodes: _nodes, connections: _connections, ...metadata } = canvas;
+  refs.push(...discoverAssetReferences(id, null, metadata, { fieldPrefix: "canvas" }));
   const indexed = indexReferences(refs);
-  snapshot = { sourceTabId: tabId, canvasId: id, canvasName: String(record(record(canvasPayload).data).canvas?.name || selected.name), canvas: record(record(canvasPayload).data).canvas || canvasPayload, nodes: nodes.items, connections: connections.items, ...indexed, diagnostics: { nodes: nodes.diagnostic, connections: connections.diagnostic } };
+  snapshot = { sourceTabId: tabId, canvasId: id, canvasName: String(canvas.name || selected.name), canvas, nodes: nodes.items, connections: connections.items, ...indexed, diagnostics: { nodes: nodes.diagnostic, connections: connections.diagnostic } };
   updateName(snapshot.canvasName);
   $("scan-summary").textContent = `已扫描「${snapshot.canvasName}」 · ${nodes.items.length} 节点 · ${connections.items.length} 连线 · ${indexed.assets.length} 资源目标`;
   $("graph").textContent = `${nodes.items.length} / ${connections.items.length}`;
   $("assets").textContent = `${refs.length} / ${indexed.assets.length}`;
+  renderAssets(indexed.assets);
   $<HTMLButtonElement>("backup").disabled = !directory;
   setStatus(directory ? "扫描完成，可以开始备份。" : "扫描完成，请选择保存目录。");
 }
@@ -211,7 +242,10 @@ async function backup() {
   const persist = async () => {
     const all = [...results.values()], ok = all.filter(x => x.status === "verified");
     $("counts").textContent = `${ok.length} / ${all.filter(x => x.status === "queued").length} / ${all.filter(x => x.status !== "verified" && x.status !== "queued").length}`;
-    $("bytes").textContent = `${(added / 1e9).toFixed(2)} GB`; $<HTMLProgressElement>("progress").max = targets.length; $<HTMLProgressElement>("progress").value = processed;
+    const unit = added >= 1e9 ? "GB" : added >= 1e6 ? "MB" : added >= 1e3 ? "KB" : "B";
+    const divisor = { GB: 1e9, MB: 1e6, KB: 1e3, B: 1 }[unit];
+    $("bytes").textContent = `${new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(added / divisor)} ${unit}`;
+    $<HTMLProgressElement>("progress").max = Math.max(1, targets.length); $<HTMLProgressElement>("progress").value = targets.length ? processed : finished ? 1 : 0;
     const report = {
       schema_version: 1, producer: "chrome-extension", transport: "extension-fetch", writer: "FileSystemAccess", runId,
       canvasId: snapshot.canvasId, canvasName: snapshot.canvasName, nodeCount: snapshot.nodes.length,
@@ -226,7 +260,9 @@ async function backup() {
       limitBytes: maxBytes, diagnostics: snapshot.diagnostics, updatedAt: new Date().toISOString(),
       ...(finished ? { finishedAt: new Date().toISOString() } : {})
     };
-    setStatus(`${report.status} · ${processed}/${targets.length} · 已验证 ${ok.length} · 复用 ${reused} · 旧目标保留 ${report.retainedAssetCount}\n${directory!.name}/tapnow-backup/${snapshot.canvasId}`);
+    $("status").dataset.state = report.status;
+    setStatus(`${runLabels[report.status] || report.status} · ${processed}/${targets.length} · 已校验 ${ok.length} · 复用 ${reused}`);
+    renderAssets(all);
     persistQueue = persistQueue.then(async () => {
       await writeLocal(root, "assets.ndjson", ndjson(all));
       await writeLocal(root, "report.json", JSON.stringify(report, null, 2));

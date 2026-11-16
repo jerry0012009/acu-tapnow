@@ -41,7 +41,7 @@ try {
           sendMessage: async (_id, message) => {
             if (message.endpoint.includes("/nodes?")) return { ok: true, body: { data: { nodes: [{ id: "n", type: "text", data: { text: "品牌影片" } }], has_more: false, total: 1 } } };
             if (message.endpoint.includes("/connections?")) return { ok: true, body: { data: { connections: [], has_more: false, total: 0 } } };
-            return { ok: true, body: { data: { canvas: { name: "ACU 创意项目 · 品牌影片" } } } };
+            return { ok: true, body: { data: { canvas: { id: canvasId, name: "ACU 创意项目 · 品牌影片" } } } };
           }, create: async () => ({}) }
       };
     }, { edition, canvasId, version });

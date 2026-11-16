@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 import { createElement, Download, FolderOpen, GripVertical, RotateCcw } from "lucide";
 import { defineContentScript } from "wxt/utils/define-content-script";
-import { canvasIdFromUrl } from "../utils/backup/source";
+import { canvasIdFromUrl, isTapNowWorkspace } from "../utils/backup/source";
 
 export default defineContentScript({
   matches: ["https://app.tapnow.ai/*"], runAt: "document_idle",
@@ -35,7 +35,7 @@ export default defineContentScript({
     host.popover = "manual";
     document.documentElement.append(host);
     function update() {
-      const visible = location.pathname.startsWith("/canvas");
+      const visible = isTapNowWorkspace(location.href);
       if (visible && !host.matches(":popover-open")) host.showPopover();
       if (!visible && host.matches(":popover-open")) host.hidePopover();
       backup.querySelector("span")!.textContent = canvasIdFromUrl(location.href) ? "备份此画布" : "选择画布备份";
