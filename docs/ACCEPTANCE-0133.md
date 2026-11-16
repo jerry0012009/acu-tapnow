@@ -62,3 +62,9 @@ Companion: 56,727 bytes, SHA-256
 `6a31c2e84322e9e350e8fc0becb5f4da42593cacd77643187872bfeed0089c41`.
 Backup: 198,355 bytes, SHA-256
 `0935ba0a8d50a7393d901da57cd97db7c8c8fef01d5d7e11fb53e1c80d5ca981`.
+
+Post-publication checks passed using downloaded release ZIPs: actual MV3
+backup-flow test, actual MV3/native host/Runtime configuration and receipt, and
+Runtime's real public catalog/download/digest/safe extraction/fixed identity
+test with `ACU_TAPNOW_RELEASE_VERSION=0.1.33`. No test transport was substituted
+for that public package check. All installation roots were disposable.
