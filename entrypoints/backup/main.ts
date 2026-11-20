@@ -2,7 +2,8 @@ import { browser } from "wxt/browser";
 import { collectPages } from "../../utils/backup/pagination";
 import { discoverAssetReferences } from "../../utils/backup/discover";
 import { downloadToDirectory, indexReferences, reconcileAssets, localFile, writeLocal, verifySaved, type LocalDirectory, type Result } from "../../utils/backup/engine";
-import { canvasIdFromUrl, sourceMatches } from "../../utils/backup/source";
+import { backupSource, sourceMatches, type BackupSource } from "../../utils/backup/source";
+import { TAPNOW_INTERNATIONAL_ORIGIN } from "../../utils/tapnow-site";
 import { directoryHandle } from "../../utils/backup/handles";
 import { backupCanvasMetadata, backupPayloadPage } from "../../utils/backup/payload";
 import { createIcons, FolderOpen, RefreshCw, ScanSearch, ExternalLink, Download, Pause, HardDrive, ShieldCheck, Layers } from "lucide";
@@ -35,7 +36,7 @@ let directory: LocalDirectory | null = null;
 let snapshot: any = null;
 let running = false;
 let downloading = false;
-let target: { tabId: number; canvasId: string; name: string } | null = null;
+let target: (BackupSource & { name: string }) | null = null;
 let generation = 0;
 let scanInvalidated = false;
 const query = new URLSearchParams(location.search);
@@ -84,8 +85,12 @@ const setBusy = (busy: boolean) => {
   $<HTMLButtonElement>("pause").disabled = !downloading;
 };
 async function tabs() {
-  return (await browser.tabs.query({})).filter(tab => tab.id && canvasIdFromUrl(tab.url));
+  return (await browser.tabs.query({})).flatMap(tab => {
+    const source = backupSource(tab);
+    return source ? [{ ...source, name: tab.title || source.canvasId }] : [];
+  });
 }
+const sourceLabel = (source: BackupSource) => new URL(source.origin).hostname;
 function resetScan(message = "尚未扫描") {
   snapshot = null;
   for (const id of ["graph", "assets", "counts"]) $(id).textContent = "-";
@@ -106,17 +111,17 @@ function updateName(name: string) {
   $("target-name").textContent = name;
   document.title = `${name} · TapNow 备份中心`;
   const option = [...$<HTMLSelectElement>("canvas").options].find(o => o.value === String(target!.tabId));
-  if (option) option.textContent = `${name} · 标签页 ${target.tabId}`;
+  if (option) option.textContent = `${name} · ${sourceLabel(target)} · 标签页 ${target.tabId}`;
 }
-async function checkSource(tabId: number, canvasId: string) {
-  const tab = await browser.tabs.get(tabId);
-  if (!sourceMatches(tab, tabId, canvasId)) throw new Error("原标签页已切换画布，请更新列表并重新扫描。");
+async function checkSource(source: BackupSource) {
+  const tab = await browser.tabs.get(source.tabId);
+  if (!sourceMatches(tab, source)) throw new Error("原标签页已切换站点或画布，请更新列表并重新扫描。");
   return tab;
 }
 async function ensureConnection() {
   if (!target) throw new Error("请先选择具体画布。");
-  await checkSource(target.tabId, target.canvasId);
-  const result = await browser.runtime.sendMessage({ type: "tapnow:ensure-backup-bridge", tabId: target.tabId, canvasId: target.canvasId });
+  const { tabId, canvasId, origin } = target;
+  const result = await browser.runtime.sendMessage({ type: "tapnow:ensure-backup-bridge", source: { tabId, canvasId, origin } });
   if (!result?.ok) throw new Error(result?.error || "页面通信未建立");
   if (!snapshot && result.title) updateName(result.title.split(/\s[|｜]\s*/)[0]);
   $("connection").textContent = result.hasSession ? "已连接 · 页面有登录会话" : "已连接 · 请在原画布登录";
@@ -127,14 +132,14 @@ async function api(tabId: number, endpoint: string) {
   if (!target || target.tabId !== tabId || scanInvalidated) throw new Error("扫描来源已改变，请重新扫描。");
   let result;
   try {
-    result = await browser.tabs.sendMessage(tabId, { type: "tapnow:backup-v2-json", endpoint, expectedCanvasId: target.canvasId }, { frameId: 0 });
+    result = await browser.tabs.sendMessage(tabId, { type: "tapnow:backup-v2-json", endpoint, expectedCanvasId: target.canvasId, expectedOrigin: target.origin }, { frameId: 0 });
   } catch {
     throw new Error("与原画布的连接已中断，请点击“重新连接”。");
   }
   if (!result?.ok) throw new Error(result?.error || "画布未返回有效响应，请点击“重新连接”后再扫描。");
   return result.body;
 }
-async function selectTarget(tabId: number, expectedId?: string) {
+async function selectTarget(tabId: number, expected?: BackupSource) {
   generation++;
   resetScan();
   target = null;
@@ -144,11 +149,11 @@ async function selectTarget(tabId: number, expectedId?: string) {
   document.title = "选择画布 · TapNow 备份中心";
   if (!tabId) { destination(); return; }
   const tab = await browser.tabs.get(tabId);
-  const id = canvasIdFromUrl(tab.url);
-  if (!id || expectedId && expectedId !== id) throw new Error("来源画布已改变，未自动改选其他画布。请更新列表后明确选择。");
-  target = { tabId, canvasId: id, name: tab.title?.split(/\s[|｜]\s*/)[0] || id };
+  const source = backupSource(tab);
+  if (!source || expected && !sourceMatches(tab, expected)) throw new Error("来源画布已改变，未自动改选其他画布。请更新列表后明确选择。");
+  target = { ...source, name: tab.title?.split(/\s[|｜]\s*/)[0] || source.canvasId };
   updateName(target.name);
-  $("target-id").textContent = `画布 ID：${id}`;
+  $("target-id").textContent = `${sourceLabel(source)} · 画布 ID：${source.canvasId}`;
   destination();
   try { await ensureConnection(); setStatus("来源画布已确认。"); }
   catch (error) { $("connection").textContent = "未就绪"; setStatus(String(error)); }
@@ -158,19 +163,21 @@ async function refreshCanvasList(initial = false) {
   const select = $<HTMLSelectElement>("canvas");
   select.replaceChildren(new Option("请选择具体画布（非项目列表）", ""));
   const available = await tabs();
-  for (const tab of available) {
-    const id = canvasIdFromUrl(tab.url)!;
-    select.append(new Option(`${tab.title || id} · 标签页 ${tab.id}`, String(tab.id)));
+  for (const source of available) {
+    select.append(new Option(`${source.name} · ${sourceLabel(source)} · 标签页 ${source.tabId}`, String(source.tabId)));
   }
-  const wantedTab = initial ? Number(query.get("sourceTab")) : remembered?.tabId;
-  const wantedId = initial ? query.get("canvasId") : remembered?.canvasId;
-  const found = available.find(tab => tab.id === wantedTab && canvasIdFromUrl(tab.url) === wantedId);
+  const wanted = initial ? {
+    tabId: Number(query.get("sourceTab")),
+    canvasId: query.get("canvasId"),
+    origin: query.get("sourceOrigin") ?? TAPNOW_INTERNATIONAL_ORIGIN
+  } : remembered;
+  const found = available.find(source => source.tabId === wanted?.tabId && source.canvasId === wanted.canvasId && source.origin === wanted.origin);
   if (found) {
-    select.value = String(found.id);
-    if (!target) await selectTarget(found.id!, wantedId!);
+    select.value = String(found.tabId);
+    if (!target) await selectTarget(found.tabId, found);
   } else {
     await selectTarget(0);
-    setStatus(wantedId ? "原来源标签页已关闭或切换，未自动选择其他画布。" : available.length ? "请从列表明确选择要备份的画布。" : "没有打开的具体画布。请在 TapNow 项目列表中打开一张画布，再点击它的“备份此画布”。");
+    setStatus(wanted?.canvasId ? "原来源标签页已关闭或切换，未自动选择其他画布。" : available.length ? "请从列表明确选择要备份的画布。" : "没有打开的具体画布。请在 TapNow 项目列表中打开一张画布，再点击它的“备份此画布”。");
   }
   $("origin").textContent = initial && query.get("canvasId") ? "来源：你点击“备份此画布”的标签页" : query.get("from") === "projects" ? "来源：画布工作区；仅备份上方选中的单画布" : "范围：上方选中的单画布";
 }
@@ -195,13 +202,13 @@ async function scan() {
   const canvas = backupCanvasMetadata(canvasPayload, id);
   const nodes = await page("nodes"), connections = await page("connections");
   if (!nodes.diagnostic.complete || !connections.diagnostic.complete) throw new Error("分页不完整，未进入下载");
-  await checkSource(tabId, id);
+  await checkSource(selected);
   if (scanInvalidated || version !== generation) throw new Error("扫描期间来源已改变，请重新扫描。");
   const refs = nodes.items.flatMap(node => discoverAssetReferences(id, String(record(node).id), record(node).data));
   const { nodes: _nodes, connections: _connections, ...metadata } = canvas;
   refs.push(...discoverAssetReferences(id, null, metadata, { fieldPrefix: "canvas" }));
   const indexed = indexReferences(refs);
-  snapshot = { sourceTabId: tabId, canvasId: id, canvasName: String(canvas.name || selected.name), canvas, nodes: nodes.items, connections: connections.items, ...indexed, diagnostics: { nodes: nodes.diagnostic, connections: connections.diagnostic } };
+  snapshot = { sourceTabId: tabId, sourceOrigin: selected.origin, canvasId: id, canvasName: String(canvas.name || selected.name), canvas, nodes: nodes.items, connections: connections.items, ...indexed, diagnostics: { nodes: nodes.diagnostic, connections: connections.diagnostic } };
   updateName(snapshot.canvasName);
   $("scan-summary").textContent = `已扫描「${snapshot.canvasName}」 · ${nodes.items.length} 节点 · ${connections.items.length} 连线 · ${indexed.assets.length} 资源目标`;
   $("graph").textContent = `${nodes.items.length} / ${connections.items.length}`;
@@ -212,13 +219,24 @@ async function scan() {
 }
 async function backup() {
   if (!directory || !snapshot) throw new Error("先选择目录并扫描画布");
-  if (!target || snapshot.canvasId !== target.canvasId || snapshot.sourceTabId !== target.tabId) throw new Error("选择与扫描结果不一致，请重新扫描。");
-  await checkSource(target.tabId, target.canvasId);
+  if (!target || snapshot.canvasId !== target.canvasId || snapshot.sourceTabId !== target.tabId || snapshot.sourceOrigin !== target.origin) throw new Error("选择与扫描结果不一致，请重新扫描。");
+  const { tabId, canvasId, origin } = target;
   const maxBytes = Number($<HTMLInputElement>("limit").value) * 1024 ** 3; if (!Number.isFinite(maxBytes) || !(maxBytes > 0)) throw new Error("上限必须大于 0");
-  const prepared = await browser.runtime.sendMessage({ type: "tapnow:prepare-backup" });
-  if (!prepared?.ok) throw new Error("媒体请求准备失败，请在扩展管理页面重新加载扩展");
+  const prepared = await browser.runtime.sendMessage({ type: "tapnow:prepare-backup", source: { tabId, canvasId, origin } });
+  if (!prepared?.ok) throw new Error(prepared?.error || "媒体请求准备失败，请在扩展管理页面重新加载扩展");
   const base = await directory.getDirectoryHandle("tapnow-backup", { create: true });
   const root = await base.getDirectoryHandle(snapshot.canvasId, { create: true });
+  let previousRunId = "";
+  try {
+    const previousReport = JSON.parse(await (await (await localFile(root, "report.json")).getFile()).text());
+    // Pre-multisite reports could only have been created from the international site.
+    if ((previousReport.sourceOrigin ?? TAPNOW_INTERNATIONAL_ORIGIN) !== origin) {
+      throw new Error("此目录已备份另一站点的同 ID 画布，请选择其他备份目录。");
+    }
+    if (/^run-\d+$/.test(previousReport.runId)) previousRunId = previousReport.runId;
+  } catch (error) {
+    if ((error as Error).name !== "NotFoundError") throw error;
+  }
   const previous = new Map<string, Result>();
   try { const file = await (await localFile(root, "assets.ndjson")).getFile(); for (const line of (await file.text()).split("\n").filter(Boolean)) { const x = JSON.parse(line); previous.set(x.assetId, x); } }
   catch (error) { if ((error as Error).name !== "NotFoundError") throw new Error("已有清单无法读取，未覆盖。请检查目录权限或文件格式。"); }
@@ -227,11 +245,8 @@ async function backup() {
   let processed = 0, added = 0, reused = 0, stopped = false, finished = false;
   controller = new AbortController();
   const runId = `run-${Date.now()}`; const ndjson = (xs: unknown[]) => xs.map(x => JSON.stringify(x)).join("\n") + "\n";
-  if (previous.size) {
-    try {
-      const oldReport = JSON.parse(await (await (await localFile(root, "report.json")).getFile()).text());
-      if (/^run-\d+$/.test(oldReport.runId)) await writeLocal(root, `runs/${oldReport.runId}/assets.ndjson`, ndjson([...previous.values()]));
-    } catch (error) { if ((error as Error).name !== "NotFoundError") throw error; }
+  if (previous.size && previousRunId) {
+    await writeLocal(root, `runs/${previousRunId}/assets.ndjson`, ndjson([...previous.values()]));
   }
   await writeLocal(root, `runs/${runId}/snapshot.json`, JSON.stringify(snapshot));
   await writeLocal(root, "canvas.json", JSON.stringify(snapshot.canvas));
@@ -248,7 +263,7 @@ async function backup() {
     $<HTMLProgressElement>("progress").max = Math.max(1, targets.length); $<HTMLProgressElement>("progress").value = targets.length ? processed : finished ? 1 : 0;
     const report = {
       schema_version: 1, producer: "chrome-extension", transport: "extension-fetch", writer: "FileSystemAccess", runId,
-      canvasId: snapshot.canvasId, canvasName: snapshot.canvasName, nodeCount: snapshot.nodes.length,
+      canvasId: snapshot.canvasId, sourceOrigin: origin, canvasName: snapshot.canvasName, nodeCount: snapshot.nodes.length,
       nodeTypes: snapshot.nodes.reduce((counts: Record<string, number>, node: any) => { const type = node.type || "unknown"; counts[type] = (counts[type] || 0) + 1; return counts; }, {}),
       connectionCount: snapshot.connections.length, referenceCount: snapshot.references.length, uniqueAssetCount: targets.length,
       currentScanAssetCount: snapshot.assets.length, retainedAssetCount: targets.length - snapshot.assets.length,
@@ -303,7 +318,7 @@ $("canvas").onchange = async () => {
 $("refresh-tabs").onclick = async () => { setBusy(true); try { await refreshCanvasList(); } catch (e) { setStatus(String(e)); } finally { setBusy(false); } };
 $("source").onclick = async () => {
   if (!target) return;
-  try { const tab = await checkSource(target.tabId, target.canvasId); await browser.tabs.update(tab.id!, { active: true }); await browser.windows.update(tab.windowId, { focused: true }); }
+  try { const tab = await checkSource(target); await browser.tabs.update(tab.id!, { active: true }); await browser.windows.update(tab.windowId, { focused: true }); }
   catch (error) { setStatus(String(error)); }
 };
 $("connect").onclick = async () => { setBusy(true); try { await connect(); } catch (e) { setStatus(String(e)); } finally { setBusy(false); } };
@@ -322,7 +337,7 @@ $("backup").onclick = async () => {
 };
 $("pause").onclick = () => controller?.abort();
 function invalidateSource(tabId: number, url?: string, closed = false) {
-  if (target?.tabId !== tabId || !closed && canvasIdFromUrl(url) === target.canvasId) return;
+  if (target?.tabId !== tabId || !closed && sourceMatches({ id: tabId, url }, target)) return;
   if (downloading) return; // Downloads use an immutable saved snapshot, not the live page.
   generation++; scanInvalidated = true;
   resetScan("原页面已关闭或切换，请重新选择并扫描");

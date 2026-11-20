@@ -2,9 +2,10 @@ import { browser } from "wxt/browser";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { canvasIdFromUrl } from "../utils/backup/source";
 import { messageListener } from "../utils/messages";
+import { TAPNOW_MATCHES } from "../utils/tapnow-site";
 
 export default defineContentScript({
-  matches: ["https://app.tapnow.ai/*"],
+  matches: TAPNOW_MATCHES,
   runAt: "document_idle",
   main() {
     const scope = globalThis as typeof globalThis & { __tapnowBackupBridge?: string };
@@ -13,7 +14,9 @@ export default defineContentScript({
     browser.runtime.onMessage.addListener(messageListener(["tapnow:backup-v2-ping", "tapnow:backup-v2-json"], async message => {
       if (!["tapnow:backup-v2-ping", "tapnow:backup-v2-json"].includes(message?.type)) return;
       const canvasId = canvasIdFromUrl(location.href);
-      if (message.expectedCanvasId !== canvasId) return { ok: false, error: "来源标签页已切换画布，请重新选择并扫描。" };
+      if (!canvasId || message.expectedCanvasId !== canvasId || message.expectedOrigin !== location.origin) {
+        return { ok: false, error: "来源标签页已切换站点或画布，请重新选择并扫描。" };
+      }
       const token = localStorage.getItem("access_token");
       if (message.type === "tapnow:backup-v2-ping") {
         return { ok: true, canvasId, title: document.title, hasSession: Boolean(token) };

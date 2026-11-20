@@ -4,6 +4,7 @@ import { loadCompanionSettings } from "../utils/companion-settings";
 import { LlmRequestError, reviewWithLlm } from "../utils/llm";
 import { MAX_SINGLE_IMAGE_BYTES } from "../utils/limits";
 import { messageListener } from "../utils/messages";
+import { TAPNOW_INTERNATIONAL_ORIGIN, tapnowOrigin } from "../utils/tapnow-site";
 import { prepareVideoMaterials } from "../utils/video";
 import { normalizeAcuEndpoint } from "../utils/acu-endpoint";
 import { parseCreativeMemory } from "../utils/creative-memory";
@@ -71,9 +72,8 @@ export default defineBackground(() => {
       try {
         const source = new URL(String(message.url || ""));
         if (
-          source.protocol !== "https:" ||
-          !(
-            source.hostname === "app.tapnow.ai" ||
+          source.protocol !== "https:" || !(
+            tapnowOrigin(source) ||
             source.hostname.endsWith(".tapnow.media") ||
             source.hostname.endsWith(".tapnow.top")
           )
@@ -93,7 +93,7 @@ export default defineBackground(() => {
           sourceUrl = candidate.toString();
           try {
             const candidateResponse = await fetch(candidate, {
-              headers: { Referer: "https://app.tapnow.ai/" }
+              headers: { Referer: `${tapnowOrigin(sender.url) || TAPNOW_INTERNATIONAL_ORIGIN}/` }
             });
             if (candidateResponse.ok) {
               response = candidateResponse;

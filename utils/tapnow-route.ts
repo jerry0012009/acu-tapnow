@@ -1,9 +1,11 @@
+import { tapnowOrigin } from "./tapnow-site";
+
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 
 export function companionRoute(value: string): { canvasId: string | null; workspace: boolean } {
   try {
     const url = new URL(value);
-    if (url.origin !== "https://app.tapnow.ai") return { canvasId: null, workspace: false };
+    if (!tapnowOrigin(url)) return { canvasId: null, workspace: false };
     const classic = /^\/canvas\/([^/]+)\/?$/.exec(url.pathname);
     if (classic) {
       return { canvasId: UUID.test(classic[1]) ? classic[1] : null, workspace: true };

@@ -6,7 +6,12 @@ import https from "node:https";
 import { execFileSync } from "node:child_process";
 import { chromium } from "playwright";
 
-const output = path.resolve("artifacts/private/backup-flow");
+const origins = { international: "https://app.tapnow.ai", domestic: "https://app.tapnow.media" };
+const region = process.argv[2] || "international";
+assert(Object.hasOwn(origins, region), `Unknown site: ${region}`);
+const origin = origins[region];
+const otherOrigin = origins[region === "international" ? "domestic" : "international"];
+const output = path.resolve("artifacts/private/backup-flow", region);
 await fs.mkdir(output, { recursive: true });
 const profile = await fs.mkdtemp(path.join(output, "profile-"));
 execFileSync("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", path.join(profile, "key.pem"), "-out", path.join(profile, "cert.pem"), "-days", "1", "-subj", "/CN=files.tapnow.media"], { stdio: "ignore" });
@@ -22,25 +27,43 @@ const mediaServer = https.createServer({ key: await fs.readFile(path.join(profil
 await new Promise(resolve => mediaServer.listen(0, "127.0.0.1", resolve));
 const mediaOrigin = `https://files.tapnow.media:${mediaServer.address().port}`;
 const extension = path.resolve(process.env.TAPNOW_TEST_EXTENSION || ".output/backup/chrome-mv3");
+const companion = path.resolve(process.env.TAPNOW_TEST_COMPANION_EXTENSION || ".output/companion/chrome-mv3");
+const identities = JSON.parse(await fs.readFile("extension-identities.json", "utf8"));
+for (const [edition, dir] of [["backup", extension], ["companion", companion]]) {
+  const manifest = JSON.parse(await fs.readFile(path.join(dir, "manifest.json"), "utf8"));
+  assert.equal(manifest.key, identities[edition].key);
+  for (const site of Object.values(origins)) {
+    assert(manifest.host_permissions.includes(`${site}/*`));
+    assert(manifest.content_scripts.every(script => script.matches.includes(`${site}/*`)));
+  }
+}
 const context = await chromium.launchPersistentContext(profile, {
   channel: "chromium", headless: true, viewport: { width: 1440, height: 960 },
-  args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`, "--no-sandbox", "--ignore-certificate-errors", "--no-proxy-server", "--host-resolver-rules=MAP files.tapnow.media 127.0.0.1"]
+  args: [`--disable-extensions-except=${extension},${companion}`, `--load-extension=${extension},${companion}`, "--no-sandbox", "--ignore-certificate-errors", "--no-proxy-server", "--host-resolver-rules=MAP files.tapnow.media 127.0.0.1"]
 });
 const canvas = "00000000-0000-4000-8000-000000000001";
 const project = "00000000-0000-4000-8000-000000000002";
-const next = "00000000-0000-4000-8000-000000000003";
+const fixtureToken = `isolated-${region}-fixture`;
 const expectedHash = createHash("sha256").update(media).digest("hex");
 const requests = [], errors = [];
-const origin = "https://app.tapnow.ai";
 try {
   await context.route("https://**/*", async route => {
     const url = new URL(route.request().url());
-    requests.push(url.pathname + url.search);
     if (url.hostname === "files.tapnow.media") {
       return route.continue();
     }
-    if (url.origin !== origin) return route.abort();
-    if (!url.pathname.startsWith("/api/")) return route.fulfill({ contentType: "text/html", body: '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>品牌影片 · 新版画布</title><style>body{background:#191b1e;color:#eee;font:14px system-ui;margin:0;padding:48px}.canvas{height:700px;border:1px solid #444;padding:24px}</style><h1>品牌影片</h1><div class="canvas" data-canvas-instance="fixture" data-canvas-active="true">新版 GPU 画布</div></html>' });
+    if (![origin, otherOrigin, "https://app.tapnow.media.example.com"].includes(url.origin)) return route.abort();
+    if (!url.pathname.startsWith("/api/")) return route.fulfill({
+      contentType: "text/html",
+      body: `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>品牌影片 · 新版画布</title>
+        <style>body{background:#191b1e;color:#eee;font:14px system-ui;margin:0;padding:48px}.canvas{height:700px;border:1px solid #444;padding:24px}</style>
+        <h1>品牌影片</h1><div class="canvas" data-canvas-instance="${canvas}" data-canvas-active="true">
+        <div class="react-flow__node selected" data-id="n-visible">测试节点</div></div></html>`
+    });
+    requests.push(url.pathname + url.search);
+    assert.equal(url.origin, origin, "canvas API stays on the source site");
+    assert.equal(route.request().headers().authorization, `Bearer ${fixtureToken}`);
+    if (url.searchParams.get("limit") === "1000") return route.fulfill({ json: { code: 0, data: { relations: {} } } });
     if (url.pathname.endsWith("/nodes")) {
       const cursor = url.searchParams.get("cursor");
       return route.fulfill({ json: { code: 0, data: { nodes: cursor ? [
@@ -48,25 +71,41 @@ try {
       ] : [{ id: "n-visible", type: "image", data: { title: "产品主画面", src: `${mediaOrigin}/original`, prompt: "保留品牌材质" } }], has_more: !cursor, next_cursor: cursor ? "" : "page-two", total: 2 } } });
     }
     if (url.pathname.endsWith("/connections")) return route.fulfill({ json: { code: 0, data: { connections: [{ id: "e", source: "n-visible", target: "n-offscreen" }], has_more: false, total: 1 } } });
-    return route.fulfill({ json: { code: 0, data: { id: canvas, name: "品牌影片 · 新版画布", preview_image: `${mediaOrigin}/original` } } });
+    return route.fulfill({ json: { code: 0, data: { id: canvas, name: "品牌影片 · 新版画布", preview_image: `${mediaOrigin}/original`, nodes: [{ id: "n-visible", type: "text", data: { text: "测试节点" } }], connections: [] } } });
   });
-  const worker = context.serviceWorkers()[0] || await context.waitForEvent("serviceworker");
-  const extensionOrigin = `chrome-extension://${new URL(worker.url()).host}`;
-  for (const page of context.pages()) if (page.url().startsWith(extensionOrigin)) await page.close();
+  const extensionOrigin = `chrome-extension://${identities.backup.id}`;
+  for (const page of context.pages()) if (page.url().startsWith("chrome-extension://")) await page.close();
   const source = await context.newPage();
   source.on("pageerror", error => errors.push(error.message));
+  await source.goto("https://app.tapnow.media.example.com/canvas/" + canvas, { waitUntil: "load" });
+  assert.equal(await source.locator("#tapnow-backup-host, #tapnow-companion-host").count(), 0);
+  const backupButton = source.locator("#tapnow-backup-host").getByRole("button", { name: "备份此画布", exact: true });
+  const companionButton = source.locator("#tapnow-companion-host").getByRole("button", { name: "副驾驶", exact: true });
+  await source.goto(`${origin}/canvas/${canvas}?classic=1`);
+  await backupButton.waitFor();
+  await companionButton.waitFor();
+  assert(await companionButton.isEnabled());
   await source.goto(`${origin}/p/${project}?c=${canvas}`);
-  await source.evaluate(() => localStorage.setItem("access_token", "isolated-backup-fixture"));
-  const launcher = source.locator("#tapnow-backup-host");
-  await launcher.getByRole("button", { name: "备份此画布", exact: true }).waitFor();
+  await source.evaluate(token => localStorage.setItem("access_token", token), fixtureToken);
+  await backupButton.waitFor();
+  await companionButton.waitFor();
+  assert(await companionButton.isEnabled());
+  await companionButton.click();
+  const companionPanel = source.locator("#tapnow-companion-host .panel");
+  const companionMeta = companionPanel.locator(".meta");
+  await companionMeta.waitFor();
+  assert.match(await companionMeta.innerText(), /n-visible/);
+  assert(requests.some(url => url.includes("limit=1000")), "companion reads data from the source API");
+  await companionPanel.getByRole("button", { name: "关闭", exact: true }).first().click();
   const opened = context.waitForEvent("page");
-  await launcher.getByRole("button", { name: "备份此画布", exact: true }).click();
+  await backupButton.click();
   const page = await opened;
   await page.waitForURL(`${extensionOrigin}/backup.html*`);
   page.on("pageerror", error => errors.push(error.message));
   await page.getByText("来源画布已确认。", { exact: true }).waitFor();
   assert.match(page.url(), /sourceTab=/);
   assert.match(page.url(), new RegExp(`canvasId=${canvas}`));
+  assert.equal(new URL(page.url()).searchParams.get("sourceOrigin"), origin);
   await page.getByRole("button", { name: "扫描此画布", exact: true }).click();
   await page.getByText("扫描完成，请选择保存目录。", { exact: true }).waitFor();
   assert.equal(await page.locator("#graph").innerText(), "2 / 1");
@@ -96,6 +135,7 @@ try {
   assert.equal(first.report.verifiedCount, 1);
   assert.equal(first.report.failedCount, 1);
   assert.equal(first.report.nodeCount, 2);
+  assert.equal(first.report.sourceOrigin, origin);
   assert(first.references.some(ref => ref.nodeId === "n-offscreen"));
   assert(first.references.some(ref => ref.nodeId === null), "canvas cover reference retained");
   assert.equal(first.assets.find(item => item.status === "verified").sha256, expectedHash);
@@ -118,7 +158,7 @@ try {
   assert.equal(await page.locator('.asset-state[data-state="verified"]').count(), 2);
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.screenshot({ path: path.join(output, "backup-completed-1440.png"), fullPage: true });
-  await source.evaluate(next => history.pushState({}, "", `/p/${next}?t=c`), next);
+  await source.goto(`${otherOrigin}/p/${project}?c=${canvas}`);
   await page.getByText("来源画布已改变，已清空旧扫描结果；未自动选择其他画布。", { exact: true }).waitFor();
   assert.equal(await page.locator("#backup").isDisabled(), true);
   assert.equal(await page.locator(".asset-item").count(), 0);
@@ -126,7 +166,7 @@ try {
   await source.waitForFunction(() => !document.querySelector("#tapnow-backup-host").matches(":popover-open"));
   assert.deepEqual(errors, []);
   await fs.writeFile(path.join(output, "result.json"), JSON.stringify({ passed: true, version: JSON.parse(await fs.readFile(path.join(extension, "manifest.json"), "utf8")).version, report: first.report, mediaRequests: mediaHeaders.length, errors }, null, 2));
-  console.log("PASS: actual MV3 backup on new canvas route, bridge, paginated scan, original download, SHA-256/readback, partial failure, incremental reuse and source invalidation");
+  console.log(`PASS ${region}: real MV3 injection for both editions on classic and new canvas, paginated backup, site-specific media Referer, SHA-256/readback, incremental reuse and cross-site source invalidation`);
 } finally {
   await context.close();
   await new Promise(resolve => mediaServer.close(resolve));

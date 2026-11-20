@@ -2,9 +2,10 @@ import { browser } from "wxt/browser";
 import { createElement, Download, FolderOpen, GripVertical, RotateCcw } from "lucide";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { canvasIdFromUrl, isTapNowWorkspace } from "../utils/backup/source";
+import { TAPNOW_MATCHES } from "../utils/tapnow-site";
 
 export default defineContentScript({
-  matches: ["https://app.tapnow.ai/*"], runAt: "document_idle",
+  matches: TAPNOW_MATCHES, runAt: "document_idle",
   main(ctx) {
     const host = document.createElement("div");
     host.id = "tapnow-backup-host";

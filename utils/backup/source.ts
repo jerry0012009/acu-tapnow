@@ -1,19 +1,25 @@
 import { companionRoute } from "../tapnow-route";
+import { tapnowOrigin } from "../tapnow-site";
 
-export const TAPNOW_ORIGIN = "https://app.tapnow.ai";
+export type BackupSource = { tabId: number; canvasId: string; origin: string };
+
 export function canvasIdFromUrl(value?: string | null): string | null {
   return companionRoute(value || "").canvasId;
 }
 export function isTapNowWorkspace(value?: string | null): boolean {
   return companionRoute(value || "").workspace;
 }
-export function sourceMatches(tab: { id?: number; url?: string }, tabId: number, canvasId: string) {
-  return tab.id === tabId && canvasIdFromUrl(tab.url) === canvasId;
+export function backupSource(tab?: { id?: number; url?: string }): BackupSource | null {
+  const origin = tapnowOrigin(tab?.url);
+  const canvasId = canvasIdFromUrl(tab?.url);
+  return tab?.id && origin && canvasId ? { tabId: tab.id, canvasId, origin } : null;
+}
+export function sourceMatches(tab: { id?: number; url?: string }, expected: BackupSource) {
+  const source = backupSource(tab);
+  return source !== null && source.tabId === expected.tabId && source.canvasId === expected.canvasId && source.origin === expected.origin;
 }
 export function backupPageQuery(tab?: { id?: number; url?: string }) {
-  const query = new URLSearchParams();
-  const id = canvasIdFromUrl(tab?.url);
-  if (tab?.id && id) { query.set("sourceTab", String(tab.id)); query.set("canvasId", id); }
-  else if (isTapNowWorkspace(tab?.url)) query.set("from", "projects");
-  return query.toString();
+  const source = backupSource(tab);
+  if (source) return new URLSearchParams({ sourceTab: String(source.tabId), canvasId: source.canvasId, sourceOrigin: source.origin }).toString();
+  return isTapNowWorkspace(tab?.url) ? "from=projects" : "";
 }

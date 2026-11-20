@@ -4,6 +4,7 @@ import acuTheme from "../viewer/acu-theme.css?inline";
 import panelStyle from "../utils/companion-panel.css?inline";
 import { parseCreativeMemory, creativeMemoryMarkup } from "../utils/creative-memory";
 import { companionRoute } from "../utils/tapnow-route";
+import { TAPNOW_MATCHES } from "../utils/tapnow-site";
 import { isVideoMaterial, videoDraftIdentity } from "../utils/video";
 import { loadCompanionSettings } from "../utils/companion-settings";
 import {
@@ -91,7 +92,7 @@ interface LlmResponse {
 type ActiveField = HTMLTextAreaElement | HTMLInputElement | HTMLElement;
 
 export default defineContentScript({
-  matches: ["https://app.tapnow.ai/*"],
+  matches: TAPNOW_MATCHES,
   runAt: "document_idle",
   main(ctx) {
     let updateRoute = (_url?: string) => {};

@@ -1,5 +1,10 @@
 # TapNow ZIP Distribution And Runtime Setup
 
+Companion and Backup 0.1.34 support both `app.tapnow.media` (mainland China)
+and `app.tapnow.ai` (international), on classic and new canvases. After updating,
+reload both extensions in Chrome, allow site access for the TapNow site you use,
+and refresh the canvas tab. Backup reads the selected site's own login session.
+
 TapNow 0.1.31 unifies Companion, Backup, the canvas panel, local library and
 connection screens with the ACU charcoal/orange interface. Companion settings
 use a scrolling popup with persistent Save and collapsed advanced fields.
